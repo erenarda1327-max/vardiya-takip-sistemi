@@ -1,0 +1,2094 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vardiya Takip</title>
+<style>
+/* =========================================================
+   TEK TEMA TOKEN SETİ (tekrarlanan :root blokları kaldırıldı)
+   ========================================================= */
+:root{
+  --bg:#f4f6f8; --panel:#ffffff; --panel2:#f8fafc; --text:#172033; --muted:#667085;
+  --border:#dfe4ea; --head:#f1f4f7; --accent:#2563eb; --accent-soft:#eaf1ff;
+  --green:#15803d; --green-soft:#ecf8f0; --red:#dc2626; --red-soft:#fff1f1;
+  --yellow:#b7791f; --yellow-soft:#fff7e6; --blue-soft:#eaf1ff; --purple:#7c3aed;
+  --shadow:0 2px 10px rgba(15,23,42,.05); --radius:10px;
+}
+body.dark{
+  --bg:#0f172a; --panel:#182235; --panel2:#111b2d; --text:#e7edf5; --muted:#98a6b8;
+  --border:#2b374a; --head:#202b3d; --accent:#5b8def; --accent-soft:#202f4f;
+  --green:#4ade80; --green-soft:#173a28; --red:#f87171; --red-soft:#3a2025;
+  --yellow:#e2b86b; --yellow-soft:#3a3020; --blue-soft:#202f4f; --purple:#c9a8ff;
+  --shadow:0 3px 14px rgba(0,0,0,.22);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+html{scroll-behavior:auto;overflow-anchor:none}
+body{
+  background:var(--bg); color:var(--text); overflow-x:hidden; overflow-anchor:none;
+  font-family:"Segoe UI",Inter,Arial,sans-serif; transition:background .2s ease,color .2s ease;
+}
+
+/* ---------- App shell / sidebar (overlay: scroll zıplamaz) ---------- */
+.app-shell{display:block;width:100%;min-height:100vh}
+.sidebar{
+  position:fixed; left:0; top:0; bottom:0; width:210px; height:100vh; height:100dvh;
+  overflow-y:auto; overflow-x:hidden; z-index:2000;
+  background:var(--panel); border-right:1px solid var(--border);
+  padding:12px 10px; display:flex; flex-direction:column; gap:10px;
+}
+.main-content{
+  position:relative; width:calc(100% - 210px); margin-left:210px;
+  padding:0 12px 14px; min-width:0;
+}
+body.sidebar-collapsed .sidebar{display:none}
+body.sidebar-collapsed .main-content{width:100%;margin-left:0}
+.sidebar-collapse{
+  position:absolute; right:6px; top:10px; width:26px; height:26px;
+  border:1px solid var(--border); border-radius:7px; background:var(--panel2);
+  color:var(--text); cursor:pointer; font-weight:800; z-index:5;
+}
+.sidebar-open-fab{
+  display:none; position:fixed; left:8px; top:12px; z-index:3000;
+  width:36px; height:36px; border:1px solid var(--border); border-radius:8px;
+  background:var(--panel); color:var(--text); box-shadow:var(--shadow); cursor:pointer;
+}
+body.sidebar-collapsed .sidebar-open-fab{display:block}
+
+.brand-mini{display:flex;gap:9px;align-items:center;padding:6px 4px 10px}
+.brand-icon{font-size:22px;color:var(--accent);font-weight:900;line-height:1}
+.brand-mini strong{display:block;font-size:13px}
+.brand-mini small{display:block;color:var(--muted);font-size:9px;margin-top:2px}
+.side-card{background:var(--panel2);border:1px solid var(--border);border-radius:11px;padding:10px;box-shadow:var(--shadow)}
+.side-title{font-size:10px;font-weight:800;letter-spacing:.4px;margin-bottom:8px}
+.side-stat{padding:7px 0;border-bottom:1px solid var(--border)}
+.side-stat:last-child{border-bottom:0}
+.side-stat span{display:block;font-size:10.5px;color:var(--muted)}
+.side-stat strong{display:block;font-size:11px;margin-top:3px}
+.side-btn{width:100%;height:34px;margin:3px 0;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--text);font-size:10.5px;text-align:left;padding:0 9px;cursor:pointer}
+.side-btn:hover{background:var(--blue-soft)}
+.legend-chip{font-size:10px;font-weight:700;border-radius:6px;padding:6px 7px;margin:4px 0}
+.legend-chip.done{background:var(--green-soft);color:var(--green)}
+.legend-chip.ongoing{background:var(--blue-soft);color:var(--accent)}
+.legend-chip.warning{background:var(--yellow-soft);color:var(--yellow)}
+.legend-chip.danger{background:var(--red-soft);color:var(--red)}
+.recent-card,.history-card{min-height:120px}
+.recent-log{padding:6px 0;border-bottom:1px solid var(--border);font-size:10.5px}
+.recent-log:last-child{border-bottom:0}
+.recent-log strong{display:block;font-size:10.5px}
+.recent-log span{color:var(--muted)}
+.empty-log{font-size:10.5px;color:var(--muted)}
+.history-item{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border)}
+.history-item:last-child{border-bottom:0}
+.history-item .hi-main{flex:1;min-width:0;cursor:pointer;text-align:left;background:transparent;border:0;color:var(--text);padding:0}
+.history-item .hi-name{display:block;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history-item .hi-meta{display:block;font-size:9px;color:var(--muted)}
+.history-item .hi-del{border:1px solid var(--border);background:var(--panel);border-radius:6px;width:24px;height:24px;cursor:pointer;color:var(--red);font-weight:800}
+.theme-toggle{margin-top:auto}
+.theme-toggle button{width:100%;height:34px;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:8px;cursor:pointer;font-size:10.5px}
+
+/* ---------- Topbar ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;gap:15px;align-items:center;padding:10px 2px 9px;background:var(--bg)}
+.title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.title-block h1{font-size:20px;margin:0;letter-spacing:-.4px}
+.active-badge{background:var(--green-soft);color:var(--green);border-radius:999px;padding:4px 9px;font-size:10.5px;font-weight:800}
+.advanced-badge{background:var(--accent-soft);color:var(--purple);border-radius:999px;padding:4px 9px;font-size:10.5px;font-weight:800}
+.status{font-size:11px;color:var(--muted);margin-left:5px}
+.top-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.top-actions button{height:34px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);padding:0 12px;font-weight:700;font-size:11px;cursor:pointer;white-space:nowrap}
+.top-actions button:hover{filter:brightness(.98)}
+.save-btn{background:var(--green)!important;border-color:var(--green)!important;color:#fff!important}
+.load-btn{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+.danger-btn{color:var(--red)}
+
+/* ---------- Control panel ---------- */
+.control-panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;box-shadow:var(--shadow)}
+.compact-controls{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.compact-controls label{display:flex;flex-direction:column;gap:3px;font-size:10px;font-weight:800;color:var(--muted)}
+.compact-controls input{height:34px;width:190px;border:1px solid var(--border);border-radius:7px;background:var(--panel2);color:var(--text);padding:0 9px;font-size:14px}
+.compact-controls .main{background:var(--accent);color:#fff;border-color:var(--accent);height:34px;border-radius:8px;padding:0 14px;font-weight:800;cursor:pointer}
+.help{font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+.info-dot{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--blue-soft);color:var(--accent);font-weight:800;margin-right:4px;font-style:normal}
+
+/* ---------- Time picker (15 dk katları garantili) ---------- */
+.time-picker{display:inline-flex;align-items:center;gap:3px;height:34px;border:1px solid var(--border);border-radius:7px;background:var(--panel2);padding:0 6px}
+.time-picker select{border:0;background:transparent;color:var(--text);font-size:14px;font-weight:700;cursor:pointer;height:100%;padding:0 2px}
+.time-picker select:focus{outline:none}
+.time-picker .time-sep{color:var(--muted);font-weight:700}
+
+/* ---------- Promise dashboard ---------- */
+.promise-dashboard{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:9px 0}
+.promise-card{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:10px 13px;box-shadow:var(--shadow);overflow:hidden;min-height:96px}
+.promise-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.promise-card.done{background:var(--green-soft);border-color:var(--green)}
+.promise-card.done:before{background:var(--green)}
+.pc-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pc-title{font-size:10.5px;font-weight:800;letter-spacing:.3px;color:var(--muted);text-transform:uppercase}
+.pc-status{font-size:9.5px;font-weight:800;padding:3px 8px;border-radius:999px;background:var(--yellow-soft);color:var(--yellow)}
+.promise-card.done .pc-status{background:var(--green);color:#fff}
+.pc-body{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
+.pc-input{display:flex;align-items:baseline;gap:6px}
+.pc-input input{width:120px;height:34px;border:0;background:transparent;padding:0 2px;font-size:24px;font-weight:800;color:var(--text);outline:none}
+.pc-input input:focus{outline:2px solid var(--accent);border-radius:6px}
+.pc-target-label{font-size:9.5px;color:var(--muted);font-weight:700}
+.pc-result{text-align:right}
+.pc-result-label{font-size:9px;color:var(--muted);font-weight:700}
+.pc-result-value{font-size:17px;font-weight:800;margin-top:2px}
+.promise-card.done .pc-result-value{color:var(--green)}
+.pc-footer{display:flex;justify-content:space-between;gap:10px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:10px;color:var(--muted)}
+.progress-track{height:6px;background:var(--border);border-radius:99px;margin-top:7px;overflow:hidden}
+.progress-bar{height:100%;width:0;background:var(--green);border-radius:99px;transition:width .25s}
+.progress-bar.blue{background:var(--accent)}
+
+/* ---------- Dashboard sections ---------- */
+.dashboard-section{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;box-shadow:var(--shadow)}
+.section-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.section-heading h2{font-size:11px;margin:0;font-weight:850;letter-spacing:.15px}
+.section-heading p{font-size:10px;color:var(--muted);margin:3px 0 0}
+
+/* ---------- Operasyonel kontrol merkezi ---------- */
+.ops-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ops-card{border:1px solid var(--border);background:var(--panel);border-radius:9px;padding:10px;box-shadow:var(--shadow);min-width:0}
+.ops-card .ops-label{display:block;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.2px}
+.ops-card strong{display:block;font-size:19px;line-height:1.15;margin-top:5px;color:var(--text)}
+.ops-card small{display:block;font-size:10px;color:var(--muted);margin-top:4px;line-height:1.35}
+.ops-card.good{background:var(--green-soft);border-color:var(--green-soft)}
+.ops-card.warn{background:var(--yellow-soft);border-color:var(--yellow-soft)}
+.ops-card.bad{background:var(--red-soft);border-color:var(--red-soft)}
+.ops-card.info{background:var(--blue-soft);border-color:var(--blue-soft)}
+.ops-detail-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:9px;margin-top:9px}
+.ops-list{display:grid;gap:0}
+.ops-row{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:10.5px}
+.ops-row:last-child{border-bottom:0}
+.ops-row span{color:var(--muted)}
+.ops-row strong{font-size:11px}
+.ops-alert-list{display:grid;gap:6px;margin-top:7px}
+.ops-alert-item{font-size:10.5px;padding:6px 7px;border-radius:7px;background:var(--panel2);border:1px solid var(--border)}
+.ops-footnote{font-size:10px;color:var(--muted);margin-top:7px;line-height:1.4}
+
+/* ---------- Sheet / tablo ---------- */
+.sheetwrap{margin-bottom:10px}
+.sheet{background:var(--panel);border:1px solid var(--border);overflow:auto;max-height:52vh;border-radius:var(--radius);box-shadow:var(--shadow)}
+.sheet table{border-collapse:collapse;table-layout:fixed;min-width:2050px}
+.sheet th,.sheet td{border:1px solid var(--border);height:28px;padding:2px 4px;font-size:12px;text-align:center;white-space:nowrap;background:var(--panel);color:var(--text)}
+.sheet th:not(.rowlabel),.sheet td:not(.rowlabel){width:66px;min-width:66px;max-width:66px}
+.sheet .rowlabel{position:sticky;left:0;z-index:20;width:295px;min-width:295px;max-width:295px;text-align:left;background:var(--panel);font-weight:700;box-shadow:2px 0 6px rgba(15,23,42,.08)}
+.sheet thead .rowlabel{z-index:25;background:var(--head)}
+.sheet thead th{position:sticky;top:0;z-index:15;background:var(--head);font-weight:800;border-bottom:2px solid var(--accent)}
+.sheet input.cellnum{width:60px;min-width:60px;max-width:60px;padding:2px;font-size:12px;text-align:center;border:0;background:transparent;color:inherit}
+.sheet input.cellnum:focus{outline:2px solid var(--accent);border-radius:4px}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+.manual{background:var(--yellow-soft)!important}
+.calc{background:var(--panel2)!important}
+button.break{width:60px;min-width:60px;height:24px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);color:var(--text);font-weight:700;font-size:9px;cursor:pointer;padding:0 2px}
+button.break.work{background:var(--green-soft);color:var(--green)}
+button.break.rest{background:var(--red-soft);color:var(--red)}
+.groupStart{border-left:2px solid var(--accent)!important}
+.groupEnd{border-right:2px solid var(--accent)!important}
+.negative{background:var(--red-soft)!important;color:var(--red)!important;font-weight:700}
+.positive{background:var(--green-soft)!important;color:var(--green)!important;font-weight:700}
+.perf-good{background:var(--green-soft)!important;color:var(--green)!important;font-weight:800}
+.perf-mid{background:var(--yellow-soft)!important;color:var(--yellow)!important;font-weight:800}
+.perf-low{background:var(--red-soft)!important;color:var(--red)!important;font-weight:800}
+.sheet tbody tr:hover td:not(.rowlabel):not(.manual){background:var(--blue-soft)}
+.sheet tbody tr:hover td.rowlabel{background:var(--blue-soft)}
+/* Tema uyumlu kaydırma çubuğu */
+.sheet{scrollbar-width:thin;scrollbar-color:var(--muted) var(--panel2)}
+.sheet::-webkit-scrollbar{width:10px;height:10px}
+.sheet::-webkit-scrollbar-track,.sheet::-webkit-scrollbar-corner{background:var(--panel2)}
+.sheet::-webkit-scrollbar-thumb{background:var(--muted);border:2px solid var(--panel2);border-radius:8px}
+
+/* ---------- Seçili saat aralığı ---------- */
+.range-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.range-controls label{display:flex;flex-direction:column;gap:3px;font-size:10.5px;font-weight:800;color:var(--muted)}
+.range-controls button{height:34px;border:0;border-radius:7px;background:var(--accent);color:#fff;font-weight:800;padding:0 14px;cursor:pointer}
+.range-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px}
+.metric-card,.kpi-card{border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:8px 9px;min-width:0}
+.metric-card span,.kpi-card span{display:block;color:var(--muted);font-size:9px;font-weight:800}
+.metric-card strong{display:block;font-size:16px;margin-top:5px}
+.green-text{color:var(--green)!important}
+.red-text{color:var(--red)!important}
+
+/* Gizli veri taşıyıcı KPI (ekranda gösterilmez, hesap için okunur) */
+.redundant-kpi-section{display:none!important}
+
+/* ---------- Panel grid ---------- */
+.panel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:stretch}
+.dashboard-section.panel-hidden{display:none!important}
+.chart-panel{min-height:285px}
+.chart-tools{font-size:9px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%}
+.blue-dot{background:var(--accent)}.red-dot{background:var(--red)}.green-dot{background:var(--green)}
+.orange-dot{background:#ea580c}.purple-dot{background:var(--purple)}
+.chart-wrap{position:relative;height:225px}
+.chart-wrap canvas{width:100%;height:225px!important;display:block}
+.chart-expand-btn{border:1px solid var(--border);background:var(--panel2);border-radius:6px;padding:3px 9px;font-size:10px;font-weight:700;cursor:pointer;color:var(--text);margin-left:auto}
+.chart-expand-btn:hover{background:var(--blue-soft)}
+.chart-panel.expanded{grid-column:1/-1}
+.chart-panel.expanded .chart-wrap,.chart-panel.expanded .chart-wrap canvas{height:520px!important}
+.chart-tooltip{position:absolute;top:8px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:11.5px;line-height:1.5;color:var(--text);box-shadow:var(--shadow);z-index:5;display:none;max-width:min(200px,calc(100% - 8px))}
+.chart-tooltip.visible{display:block}
+.chart-tooltip button{border:0;background:transparent;cursor:pointer;color:var(--muted);font-size:12px;margin-left:8px;padding:0}
+.donut-wrap{height:150px;position:relative}
+.donut-wrap canvas{width:100%;height:150px}
+.donut-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none}
+.donut-center strong{font-size:21px}
+.donut-center span{font-size:10.5px;color:var(--muted)}
+.status-list>div{display:flex;align-items:center;gap:7px;font-size:10px;padding:5px 0;border-top:1px solid var(--border)}
+.status-list strong{margin-left:auto}
+.group-performance{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:7px}
+.group-performance .gp{border:1px solid var(--border);background:var(--panel2);border-radius:7px;padding:5px 3px;text-align:center}
+.group-performance .gp span{display:block;font-size:9.5px;color:var(--muted)}
+.group-performance .gp strong{display:block;font-size:10px;margin-top:3px}
+.gp.done{background:var(--green-soft);border-color:var(--green-soft)}
+.gp.warn{background:var(--blue-soft);border-color:var(--blue-soft)}
+.gp.miss{background:var(--red-soft);border-color:var(--red-soft)}
+.avg-list>div{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:10px}
+.avg-list>div:last-child{border-bottom:0}
+.avg-list span{color:var(--muted)}
+.avg-list strong{font-size:13px}
+.good-row strong{color:var(--green)}
+.quick-tabs{display:flex;gap:4px;background:var(--panel2);border:1px solid var(--border);padding:3px;border-radius:8px}
+.quick-tab{border:0;background:transparent;color:var(--muted);font-size:10px;font-weight:800;padding:5px 8px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.quick-tab.active{background:var(--accent);color:#fff}
+.quick-view-content{display:none}
+.quick-view-content.active{display:block}
+.quick-view-content canvas{width:100%;height:145px!important;display:block}
+.quickview-panel.expanded{grid-column:1/-1}
+.quickview-panel.expanded .quick-view-content canvas{height:420px!important}
+.mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:5px}
+.mini-stats div{background:var(--panel2);border-radius:7px;padding:6px;text-align:center}
+.mini-stats span{display:block;font-size:9px;color:var(--muted)}
+.mini-stats strong{display:block;font-size:13px;margin-top:3px}
+.summary-big>div{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:10px}
+.summary-big>div:last-child{border-bottom:0}
+.summary-big strong{font-size:12px}
+.notes-panel textarea{width:100%;height:130px;resize:vertical;border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:8px;font:12px inherit;color:var(--text)}
+.char-count{text-align:right;font-size:10px;color:var(--muted);margin-top:3px}
+.footer-note{display:flex;justify-content:space-between;gap:10px;padding:8px 2px 12px;font-size:9.5px;color:var(--muted);border-top:1px solid var(--border);margin-top:2px;flex-wrap:wrap}
+
+/* ---------- Dosya yükleme ---------- */
+.file-dropzone{border:2px dashed var(--accent);border-radius:12px;background:var(--panel2);min-height:82px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;transition:.18s;padding:12px}
+.file-dropzone:hover,.file-dropzone.dragover{background:var(--blue-soft)}
+.file-dropzone-inner{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.file-drop-icon{font-size:22px;line-height:1;color:var(--accent)}
+.file-drop-title{font-size:13px;font-weight:850;color:var(--accent)}
+.file-drop-sub{font-size:10.5px;color:var(--muted);margin-top:3px;width:100%}
+.file-import-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.file-import-row select{height:32px;min-width:240px;border:1px solid var(--border);border-radius:7px;background:var(--panel2);color:var(--text);padding:0 8px;font-size:11px}
+.file-import-row button{height:32px;border:1px solid var(--border);border-radius:7px;background:var(--panel2);color:var(--text);font-weight:750;padding:0 11px;cursor:pointer;font-size:11px}
+.file-import-row button.main{background:var(--accent);border-color:var(--accent);color:#fff}
+.file-import-row button:disabled,.file-import-row select:disabled{opacity:.5;cursor:not-allowed}
+.file-name{font-size:10.5px;color:var(--muted);margin-top:6px}
+.csv-status{font-size:10.5px;color:var(--muted);margin-top:7px;min-height:16px}
+
+/* ---------- Settings drawer ---------- */
+.settings-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.settings-backdrop.open{opacity:1;pointer-events:auto}
+.settings-drawer{position:fixed;top:0;right:0;height:100vh;width:360px;max-width:88vw;background:var(--panel);border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(15,23,42,.12);z-index:50;overflow-y:auto;padding:14px;transform:translateX(100%);transition:transform .25s ease}
+.settings-drawer.open{transform:translateX(0)}
+.settings-drawer-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.settings-drawer-head h3{margin:0;font-size:13px}
+.settings-drawer-head button{border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:var(--muted);padding:2px 6px}
+.settings-drawer-section{border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
+.settings-drawer-section:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.mode-toggle{display:flex;gap:6px}
+.mode-btn{flex:1;border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:7px;padding:8px 0;font-weight:700;font-size:11px;cursor:pointer}
+.mode-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+#modeAdvancedBtn.active{background:var(--purple);border-color:var(--purple)}
+.panel-settings-list{display:grid;gap:6px;margin-top:9px}
+.panel-settings-row{display:flex;align-items:center;gap:7px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--panel2);font-size:10.5px}
+.panel-settings-row .psr-name{flex:1;font-weight:700;color:var(--text)}
+.panel-settings-row button{border:1px solid var(--border);background:var(--panel);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:11px;color:var(--text)}
+.panel-settings-row button:disabled{opacity:.35;cursor:default}
+.panel-settings-row button.psr-toggle.is-hidden{background:var(--red-soft);color:var(--red);border-color:var(--red-soft)}
+
+/* ---------- App modal ---------- */
+.app-modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:60;opacity:0;pointer-events:none;transition:opacity .15s}
+.app-modal-backdrop.open{opacity:1;pointer-events:auto}
+.app-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-46%);background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(15,23,42,.25);z-index:61;padding:18px;width:340px;max-width:88vw;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}
+.app-modal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.app-modal-message{font-size:12.5px;color:var(--text);line-height:1.5;margin-bottom:14px;white-space:pre-line}
+.app-modal-input{width:100%;height:34px;border:1px solid var(--border);border-radius:7px;background:var(--panel2);color:var(--text);padding:0 9px;font-size:14px;margin-bottom:14px}
+.app-modal-buttons{display:flex;justify-content:flex-end;gap:8px}
+.app-modal-buttons button{border:1px solid var(--border);background:var(--panel2);border-radius:7px;padding:8px 14px;font-weight:700;font-size:11px;cursor:pointer;color:var(--text)}
+.app-modal-buttons button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.app-modal-buttons button.danger{background:var(--red);border-color:var(--red);color:#fff}
+
+/* ---------- Advanced mode görünürlük ---------- */
+.advanced-only{display:none}
+body.advanced-mode tr.advanced-only{display:table-row}
+body.advanced-mode div.advanced-only{display:block}
+body.advanced-mode span.advanced-only{display:inline-flex;align-items:center;gap:5px}
+body.advanced-mode .summary-big>div.advanced-only{display:flex}
+body.advanced-mode tr.advanced-only td{background:var(--accent-soft)!important}
+body.advanced-mode tr.advanced-only td.rowlabel{border-left:3px solid var(--purple)!important}
+body.advanced-mode .metric-card.advanced-only{background:var(--accent-soft)!important;border-color:var(--purple)!important}
+body.advanced-mode .main-content{box-shadow:inset 0 3px 0 var(--purple)}
+
+/* ---------- Responsive ---------- */
+@media(max-width:1200px){
+  .panel-grid{grid-template-columns:repeat(2,1fr)}
+  .ops-grid{grid-template-columns:repeat(3,1fr)}
+  .ops-detail-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:800px){
+  .sidebar{width:230px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+  .main-content{width:100%;margin-left:0;padding:0 8px 12px}
+  body:not(.sidebar-collapsed) .sidebar-open-fab{display:none}
+  .panel-grid,.ops-grid,.ops-detail-grid,.promise-dashboard{grid-template-columns:1fr}
+  .top-actions{width:100%}
+  .top-actions button{flex:1 1 auto}
+  .pc-input input{width:130px;height:38px;font-size:26px}
+}
+
+/* ---------- Print ---------- */
+@media print{
+  .sidebar,.sidebar-open-fab,.top-actions,#clear,.notes-panel,.theme-toggle,.file-dropzone,.settings-drawer,.settings-backdrop,.chart-expand-btn{display:none!important}
+  .main-content{width:100%;margin:0;padding:0}
+  .sheet{max-height:none;overflow:visible}
+  .dashboard-section,.promise-dashboard,.ops-center{break-inside:avoid;box-shadow:none}
+  .sheet table{min-width:100%}
+  body{background:#fff}
+  button.break{border:0;cursor:default}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <button class="sidebar-collapse" id="sidebarCollapse" title="Sidebar'ı gizle">&laquo;</button>
+    <div class="brand-mini"><span class="brand-icon">V</span><div><strong>Vardiya Takip</strong><small>Shipment Dashboard</small></div></div>
+
+    <div class="side-card quick-info">
+      <div class="side-title">HIZLI BİLGİLER</div>
+      <div class="side-stat"><span>Vardiya Süresi</span><strong id="sideDuration">—</strong></div>
+      <div class="side-stat"><span>Çalışma Süresi</span><strong id="sideWorkDuration">—</strong></div>
+      <div class="side-stat"><span>Oluşturulma</span><strong id="sideCreated">—</strong></div>
+      <div class="side-stat"><span>Son Güncelleme</span><strong id="sideUpdated">—</strong></div>
+    </div>
+
+    <div class="side-card">
+      <div class="side-title">KISAYOLLAR</div>
+      <button class="side-btn" id="sidePrint">Raporu Yazdır</button>
+      <button class="side-btn" id="sideExcel">Excel İndir</button>
+      <button class="side-btn" id="sideBackup">Yedekle (JSON)</button>
+    </div>
+
+    <div class="side-card history-card">
+      <div class="side-title">KAYITLI VARDİYALAR</div>
+      <div id="historyList"><div class="empty-log">Henüz kayıtlı vardiya yok.</div></div>
+    </div>
+
+    <div class="side-card">
+      <div class="side-title">RENK AÇIKLAMALARI</div>
+      <div class="legend-chip done">Hedef Tamamlandı</div>
+      <div class="legend-chip ongoing">Devam Ediyor</div>
+      <div class="legend-chip warning">Düşük Performans</div>
+      <div class="legend-chip danger">Hedefe Ulaşılmadı</div>
+    </div>
+
+    <div class="side-card recent-card">
+      <div class="side-title">SON KAYITLAR</div>
+      <div id="recentLogs"><div class="empty-log">Henüz kayıt yok.</div></div>
+    </div>
+
+    <div class="theme-toggle"><button id="theme" title="Koyu / Açık mod">Koyu Mod</button></div>
+  </aside>
+
+  <button class="sidebar-open-fab" id="sidebarOpen" title="Sidebar'ı göster">&raquo;</button>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div class="title-block">
+        <div class="title-row">
+          <h1>Vardiya / Shipment Takip</h1>
+          <span class="active-badge">Aktif</span>
+          <span class="advanced-badge advanced-only">Gelişmiş Mod</span>
+        </div>
+        <span id="status" class="status"></span>
+      </div>
+      <div class="top-actions">
+        <button id="save" class="save-btn">Kaydet</button>
+        <button id="load" class="load-btn">Kaydı getir</button>
+        <button id="excel">Excel olarak indir</button>
+        <button id="printReport">Raporu Yazdır</button>
+        <button id="settingsBtn">Ayarlar</button>
+        <button id="clear" class="danger-btn">Boşalt</button>
+      </div>
+    </header>
+
+    <section class="control-panel">
+      <div class="compact-controls">
+        <label>Vardiya başlangıç
+          <input id="start" type="time" value="19:00" style="display:none">
+          <span class="time-picker" data-target="start"><select class="time-h" aria-label="Saat"></select><span class="time-sep">:</span><select class="time-m" aria-label="Dakika"></select></span>
+        </label>
+        <label>Vardiya bitiş
+          <input id="end" type="time" value="07:00" style="display:none">
+          <span class="time-picker" data-target="end"><select class="time-h" aria-label="Saat"></select><span class="time-sep">:</span><select class="time-m" aria-label="Dakika"></select></span>
+        </label>
+        <label>Vardiya adı (kayıt için)
+          <input id="shiftName" type="text" placeholder="örn. 12 Mart Gece">
+        </label>
+        <button class="main" id="make">Tabloyu oluştur</button>
+      </div>
+      <div class="help"><span class="info-dot">i</span> Excel mantığı: başlangıç saati ayrı; sonrasında 4 adet 15 dk = 1 saatlik grup. Örn. 19:00 ayrı, 19:15-20:00 bir grup, 20:15-21:00 bir grup, 00:00 yeni günün Promise'ına geçer. 00:15 ilk Shipment So Far değeri doğrudan 15 dakikalık adet kabul edilir.</div>
+    </section>
+
+    <section class="promise-dashboard">
+      <div class="promise-card" id="promiseCard1">
+        <div class="pc-head"><div class="pc-title">1. GÜN PROMISE (00:00'A KADAR)</div><div class="pc-status" id="promiseStatus1">BEKLENİYOR</div></div>
+        <div class="pc-body">
+          <div class="pc-input"><input id="promise1" type="number" min="0" step="1" placeholder="0"><span class="pc-target-label">adet hedef</span></div>
+          <div class="pc-result"><div class="pc-result-label">00:00'a kadar ulaşılan</div><div class="pc-result-value" id="promiseActual1">—</div></div>
+        </div>
+        <div class="progress-track"><div class="progress-bar" id="promiseProgress1"></div></div>
+        <div class="pc-footer"><span>Kesim: 00:00</span><span id="promisePct1">%0</span><span id="promiseDiff1">Kalan: —</span></div>
+      </div>
+      <div class="promise-card" id="promiseCard2">
+        <div class="pc-head"><div class="pc-title">2. GÜN PROMISE (00:00 SONRASI)</div><div class="pc-status" id="promiseStatus2">BEKLENİYOR</div></div>
+        <div class="pc-body">
+          <div class="pc-input"><input id="promise2" type="number" min="0" step="1" placeholder="0"><span class="pc-target-label">adet hedef</span></div>
+          <div class="pc-result"><div class="pc-result-label">00:00 sonrası yapılan</div><div class="pc-result-value" id="promiseActual2">—</div></div>
+        </div>
+        <div class="progress-track"><div class="progress-bar blue" id="promiseProgress2"></div></div>
+        <div class="pc-footer"><span>Başlangıç: 00:00 sonrası</span><span id="promisePct2">%0</span><span id="promiseDiff2">Kalan: —</span></div>
+      </div>
+    </section>
+
+    <section class="dashboard-section ops-center" id="opsCenter">
+      <div class="section-heading"><div><h2>OPERASYONEL KONTROL MERKEZİ</h2><p>Şu anki tempo, hedefe yetişme ihtimali, açık nedeni ve veri kalitesini tek yerde gösterir.</p></div></div>
+      <div class="ops-grid">
+        <div class="ops-card info" id="opsPaceCard"><span class="ops-label">Mevcut tempo</span><strong id="opsCurrentPace">—</strong><small id="opsCurrentPaceSub">Son ölçülen 15 dk slotlarına göre</small></div>
+        <div class="ops-card" id="opsNeedCard"><span class="ops-label">Gerekli tempo</span><strong id="opsRequiredPace">—</strong><small id="opsRequiredPaceSub">Kalan hedef / kalan süre</small></div>
+        <div class="ops-card" id="opsGapCard"><span class="ops-label">Tempo farkı</span><strong id="opsPaceGap">—</strong><small id="opsPaceGapSub">Mevcut tempo − gerekli tempo</small></div>
+        <div class="ops-card" id="opsForecastCard"><span class="ops-label">Tahmini sonuç</span><strong id="opsForecast">—</strong><small id="opsForecastSub">Mevcut tempo korunursa</small></div>
+        <div class="ops-card" id="opsAlertCard"><span class="ops-label">Canlı durum</span><strong id="opsStatusText">—</strong><small id="opsStatusSub">Analiz bekleniyor</small></div>
+      </div>
+      <div class="ops-detail-grid">
+        <div class="dashboard-section ops-panel"><div class="section-heading"><div><h2>AÇIK / KAYIP ANALİZİ</h2><p>Geride kalan miktarın görünen operasyonel nedenleri.</p></div></div>
+          <div class="ops-list">
+            <div class="ops-row"><span>Düşük tempo kaynaklı açık</span><strong id="opsLowLoss">0</strong></div>
+            <div class="ops-row"><span>Mola fırsat maliyeti (tahmini)</span><strong id="opsBreakLoss">0</strong></div>
+            <div class="ops-row"><span>Toplam açık</span><strong id="opsTotalGap">0</strong></div>
+            <div class="ops-row"><span>Kapasite kullanımı</span><strong id="opsCapacityUtil">—</strong></div>
+            <div class="ops-row"><span>Son 4 slot trendi</span><strong id="opsTrend">—</strong></div>
+            <div class="ops-row"><span>Üst üste hedef altı slot</span><strong id="opsStreak">0</strong></div>
+          </div>
+          <div class="ops-footnote">Mola fırsat maliyeti, mola slotları için son çalışma slotlarının ortalama 15 dk üretimi üzerinden tahmin edilir; gerçek kayıp olarak yorumlanmamalıdır.</div>
+        </div>
+        <div class="dashboard-section ops-panel"><div class="section-heading"><div><h2>VERİ KALİTESİ</h2><p>Hesapların güvenilirliğini etkileyebilecek durumlar.</p></div></div>
+          <div class="ops-list">
+            <div class="ops-row"><span>Girilen Shipment</span><strong id="opsDataCount">0</strong></div>
+            <div class="ops-row"><span>Eksik / gelecek slot</span><strong id="opsMissingCount">0</strong></div>
+            <div class="ops-row"><span>Şüpheli azalma</span><strong id="opsDecreaseCount">0</strong></div>
+            <div class="ops-row"><span>Kapasite eksikliği</span><strong id="opsCapacityMissing">0</strong></div>
+            <div class="ops-row"><span>Veri güveni</span><strong id="opsDataConfidence">—</strong></div>
+          </div>
+          <div class="ops-footnote">Shipment So Far değerinin vardiya içinde geriye düşmesi şüpheli kabul edilir. Boş gelecek slotlar hata sayılmaz.</div>
+        </div>
+        <div class="dashboard-section ops-panel"><div class="section-heading"><div><h2>ALARM / ÖNERİ</h2><p>Şu anda dikkat edilmesi gerekenler.</p></div></div>
+          <div id="opsAlerts" class="ops-alert-list"><div class="ops-alert-item">Analiz bekleniyor.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sheetwrap"><div class="sheet" id="sheet"></div></section>
+
+    <section class="range-section dashboard-section">
+      <div class="section-heading"><div><h2>SEÇİLİ SAAT ARALIĞI ÖZETİ</h2><p>İstediğin zaman aralığını seçerek gerçek üretim ve ihtiyaç değerlerini karşılaştır.</p></div></div>
+      <div class="range-controls">
+        <label>Başlangıç
+          <input id="rangeStart" type="time" value="00:00" style="display:none">
+          <span class="time-picker" data-target="rangeStart"><select class="time-h" aria-label="Saat"></select><span class="time-sep">:</span><select class="time-m" aria-label="Dakika"></select></span>
+        </label>
+        <label>Bitiş
+          <input id="rangeEnd" type="time" value="00:00" style="display:none">
+          <span class="time-picker" data-target="rangeEnd"><select class="time-h" aria-label="Saat"></select><span class="time-sep">:</span><select class="time-m" aria-label="Dakika"></select></span>
+        </label>
+        <button id="calcRange" class="main">Hesapla</button>
+      </div>
+      <div class="range-metrics">
+        <div class="metric-card"><span>Yapılan — 15 dk slot toplamı</span><strong id="rangeMade">0</strong></div>
+        <div class="metric-card"><span>Yapılması Gereken</span><strong id="rangeRequired">0</strong></div>
+        <div class="metric-card"><span>Performans Oranı</span><strong id="rangePerf" class="green-text">%0</strong></div>
+        <div class="metric-card"><span>Tahmini Bitiş</span><strong id="rangeEta">—</strong></div>
+        <div class="metric-card"><span>Tahmini Kalan</span><strong id="rangeRemain">—</strong></div>
+        <div class="metric-card"><span>Çalışma Süresi (mola hariç)</span><strong id="rangeWorkDuration">—</strong></div>
+        <div class="metric-card advanced-only"><span>Fracs Toplamı (15 dk)</span><strong id="rangeFracsTotal">—</strong></div>
+      </div>
+    </section>
+
+    <section class="dashboard-section redundant-kpi-section">
+      <div class="kpi-grid">
+        <div class="kpi-card"><span>AY4</span><strong id="AY4_BOX">0</strong></div>
+        <div class="kpi-card"><span>AZ4</span><strong id="AZ4_BOX">0</strong></div>
+        <div class="kpi-card"><span>AY14</span><strong id="AY14_BOX">0</strong></div>
+        <div class="kpi-card"><span>AZ14</span><strong id="AZ14_BOX">0</strong></div>
+        <div class="kpi-card"><span>Verimlilik</span><strong id="efficiencyBox" class="green-text">%0</strong></div>
+      </div>
+    </section>
+
+    <section class="panel-grid" id="panelGrid">
+      <div class="dashboard-section chart-panel" data-panel-id="chart">
+        <div class="section-heading"><div><h2>15 DAKİKALIK GRAFİK</h2><p>Yapılan ve yapılması gereken 15 dk değerlerini karşılaştır. Bir noktaya tıklayarak değerini gör.</p></div><div class="chart-tools"><span class="dot blue-dot"></span> 15 dk yapılan <span class="dot red-dot"></span> 15 dk gereken <span class="advanced-only"><span class="dot orange-dot"></span> 15 dk charge</span> <button type="button" id="chartExpandBtn" class="chart-expand-btn">Genişlet</button></div></div>
+        <div class="chart-wrap"><canvas id="chart"></canvas><div class="chart-tooltip" id="chartTooltip"></div></div>
+      </div>
+      <div class="dashboard-section chart-panel performance-panel" data-panel-id="performance">
+        <div class="section-heading"><div><h2>PERFORMANS DURUMU</h2><p>Hedef durumlarını hızlıca gör.</p></div></div>
+        <div class="donut-wrap"><canvas id="performanceChart"></canvas><div class="donut-center"><strong id="completionPct">%0</strong><span>Tamamlama</span></div></div>
+        <div class="status-list"><div><span class="dot green-dot"></span> Hedef Tamamlandı <strong id="statusDone">0</strong></div><div><span class="dot blue-dot"></span> Devam Ediyor <strong id="statusOngoing">0</strong></div><div><span class="dot red-dot"></span> Hedefe Ulaşılmadı <strong id="statusMissed">0</strong></div></div>
+        <div class="group-performance" aria-label="Grup bazında performans">
+          <div class="gp" id="gp1"><span>1. Grup</span><strong id="gp1v">%0</strong></div>
+          <div class="gp" id="gp2"><span>2. Grup</span><strong id="gp2v">%0</strong></div>
+          <div class="gp" id="gp3"><span>3. Grup</span><strong id="gp3v">%0</strong></div>
+          <div class="gp" id="gp4"><span>4. Grup</span><strong id="gp4v">%0</strong></div>
+          <div class="gp" id="gp5"><span>5. Grup</span><strong id="gp5v">%0</strong></div>
+        </div>
+      </div>
+      <div class="dashboard-section averages-panel" data-panel-id="averages">
+        <div class="section-heading"><div><h2>ORTALAMALAR</h2><p>Temel ortalamalar ve kapasite.</p></div></div>
+        <div class="avg-list"><div><span>15 dk Ortalama (Mola Durumuna Göre)</span><strong id="avg15Box">0</strong></div><div><span>Saatlik Ortalama (Mola Durumuna Göre)</span><strong id="avgHourBox">0</strong></div><div><span>15 dk Ortalama (Hepsi Dahil)</span><strong id="avg15AllBox">0</strong></div><div><span>Saatlik Kapasite</span><strong id="hourCapacityBox">0</strong></div><div class="good-row"><span>Verimlilik Oranı</span><strong id="efficiencyBox2">%0</strong></div></div>
+      </div>
+      <div class="dashboard-section mini-chart-panel quickview-panel" data-panel-id="quickview">
+        <div class="section-heading"><div><h2>HIZLI BAKIŞ</h2><p>İki dönemi tek grafikte, sekmelerle karşılaştır. <span class="advanced-only"><span class="dot purple-dot"></span> incl. Fracs</span></p></div>
+          <div class="quick-tabs" role="tablist" aria-label="Hızlı bakış">
+            <button class="quick-tab active" id="quickTab1" type="button">00:00'a kadar</button>
+            <button class="quick-tab" id="quickTab2" type="button">00:00 sonrası</button>
+          </div>
+          <button type="button" id="quickviewExpandBtn" class="chart-expand-btn">Genişlet</button>
+        </div>
+        <div class="quick-view-content active" id="quickView1">
+          <div class="mini-stats"><div><span>Toplam Yapılan</span><strong id="day1Total">0</strong></div><div><span>Ortalama (Saatlik)</span><strong id="day1Avg">0</strong></div><div><span>Hedefe Göre</span><strong id="day1Pct">%0</strong></div></div>
+          <canvas id="day1Chart"></canvas>
+        </div>
+        <div class="quick-view-content" id="quickView2">
+          <div class="mini-stats"><div><span>Toplam Yapılan</span><strong id="day2Total">0</strong></div><div><span>Ortalama (Saatlik)</span><strong id="day2Avg">0</strong></div><div><span>Hedefe Göre</span><strong id="day2Pct">%0</strong></div></div>
+          <canvas id="day2Chart"></canvas>
+        </div>
+      </div>
+      <div class="dashboard-section daily-summary" data-panel-id="summary"><div class="section-heading"><div><h2>GÜNLÜK ÖZET</h2><p>Toplam promise ve gerçekleşen.</p></div></div><div class="summary-big">
+        <div><span>Vardiya İçine Oranlanmış Promise</span><strong id="totalPromiseBox">0</strong></div>
+        <div><span>Toplam Yapılan (15 dk)</span><strong id="totalMadeBox">0</strong></div>
+        <div><span>15 dk Yapılması Gereken Toplam</span><strong id="totalRequiredBox">0</strong></div>
+        <div><span>Promise'a Göre Oran</span><strong id="totalPromiseRatioBox" class="green-text">%0</strong></div>
+        <div><span>15 dk Gereken'e Göre Oran</span><strong id="totalRequiredRatioBox" class="green-text">%0</strong></div>
+        <div><span>Promise'a Göre Kalan</span><strong id="totalRemainBox" class="red-text">0</strong></div>
+        <div class="advanced-only"><span>Toplam Fracs (15 dk)</span><strong id="totalFracsBox">—</strong></div>
+      </div></div>
+      <div class="dashboard-section notes-panel" data-panel-id="notes"><div class="section-heading"><div><h2>NOTLAR</h2><p>Vardiya için kısa not bırak.</p></div></div><textarea id="notes" maxlength="500" placeholder="Not almak için buraya yazın..."></textarea><div class="char-count" id="notesCount">0 / 500</div></div>
+    </section>
+
+    <footer class="footer-note"><span>İpucu: Mola durumunu doğru seçmek ortalama değerlerin doğruluğu için önemlidir.</span><span>Veriler tarayıcıda tutulur; kritik vardiyalarda JSON yedeği alınması önerilir.</span></footer>
+  </main>
+</div>
+
+<div class="settings-backdrop" id="settingsBackdrop"></div>
+<aside class="settings-drawer" id="settingsDrawer" aria-label="Ayarlar">
+  <div class="settings-drawer-head"><h3>Ayarlar</h3><button type="button" id="settingsCloseBtn" aria-label="Kapat">&times;</button></div>
+
+  <div class="settings-drawer-section">
+    <div class="side-title">MOD</div>
+    <p class="help" style="margin-top:0">Gelişmiş mod, Charge/Hr ve Fracs ile ilgili ek satır/kutuları gösterir.</p>
+    <div class="mode-toggle" role="radiogroup" aria-label="Mod">
+      <button type="button" id="modeStandardBtn" class="mode-btn active">Standart</button>
+      <button type="button" id="modeAdvancedBtn" class="mode-btn">Gelişmiş</button>
+    </div>
+  </div>
+
+  <div class="settings-drawer-section">
+    <div class="side-title">PANEL SIRASI VE GÖRÜNÜRLÜĞÜ</div>
+    <div class="panel-settings-list" id="panelSettingsList"></div>
+  </div>
+
+  <div class="settings-drawer-section">
+    <div class="side-title">VERİ YÜKLEME</div>
+    <p class="help" style="margin-top:0">CSV veya kaydedilmiş Excel dosyanı tek alandan yükle.</p>
+    <input id="unifiedFileInput" type="file" accept=".csv,.xls,.html,text/csv,text/html,application/vnd.ms-excel" hidden>
+    <div class="file-dropzone" id="unifiedFileDrop" tabindex="0" role="button" aria-label="CSV veya Excel dosyası seç veya sürükle bırak">
+      <div class="file-dropzone-inner">
+        <span class="file-drop-icon">+</span>
+        <div><div class="file-drop-title">Excel / CSV Seçin veya Sürükleyin</div><div class="file-drop-sub">Tıklayarak dosya seçebilir veya dosyayı bu kutunun üzerine bırakabilirsin.</div></div>
+      </div>
+    </div>
+    <div id="selectedFileName" class="file-name">Henüz dosya seçilmedi.</div>
+    <div id="csvImportOptions" class="file-import-row" hidden>
+      <select id="metricSelect" disabled><option value="">Önce CSV yükle</option></select>
+      <button id="importCsv" class="main" disabled>CSV'den Aktar</button>
+      <button id="clearCsv">CSV'yi Temizle</button>
+    </div>
+    <div id="csvStatus" class="csv-status">Dosya yüklenmedi.</div>
+  </div>
+</aside>
+
+<div class="app-modal-backdrop" id="appModalBackdrop"></div>
+<div class="app-modal" id="appModal" role="alertdialog" aria-modal="true">
+  <div class="app-modal-message" id="appModalMessage"></div>
+  <input class="app-modal-input" id="appModalInput" type="text" hidden>
+  <div class="app-modal-buttons" id="appModalButtons"></div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+let slots=[];
+let groups=[];
+
+const $=id=>document.getElementById(id);
+function debounce(fn,wait){let t;return function(...args){clearTimeout(t);t=setTimeout(()=>fn.apply(this,args),wait);};}
+const debouncedCalculate=debounce(()=>calculate(),150);
+const fmt=v=>v===null||v===undefined||Number.isNaN(v)?'':Number(v).toLocaleString('tr-TR',{maximumFractionDigits:2});
+const val=v=>(v===''||v===null||v===undefined)?null:Number(v);
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ---- Saat/dakika seçici (başlangıç/bitiş) ---- */
+const startEndTimePickerRefreshers=[];
+function setupTimePicker(hiddenId){
+  const hidden=$(hiddenId);
+  const wrap=document.querySelector('.time-picker[data-target="'+hiddenId+'"]');
+  if(!hidden||!wrap) return;
+  const hSel=wrap.querySelector('.time-h'), mSel=wrap.querySelector('.time-m');
+  if(!hSel||!mSel) return;
+  hSel.innerHTML='';
+  for(let h=0;h<24;h++){
+    const opt=document.createElement('option');
+    opt.value=String(h).padStart(2,'0');
+    opt.textContent=String(h).padStart(2,'0');
+    hSel.appendChild(opt);
+  }
+  mSel.innerHTML='';
+  [0,15,30,45].forEach(m=>{
+    const opt=document.createElement('option');
+    opt.value=String(m).padStart(2,'0');
+    opt.textContent=String(m).padStart(2,'0');
+    mSel.appendChild(opt);
+  });
+  function syncFromHidden(){
+    const parts=(hidden.value||'00:00').split(':');
+    const hh=parts[0]||'00';
+    let mNum=Math.round(Number(parts[1]||0)/15)*15;
+    if(mNum>=60) mNum=0;
+    hSel.value=hh;
+    mSel.value=String(mNum).padStart(2,'0');
+  }
+  function syncToHidden(){
+    hidden.value=hSel.value+':'+mSel.value;
+    hidden.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  syncFromHidden();
+  hSel.addEventListener('change',syncToHidden);
+  mSel.addEventListener('change',syncToHidden);
+  startEndTimePickerRefreshers.push(syncFromHidden);
+}
+['start','end'].forEach(setupTimePicker);
+function refreshStartEndTimePickers(){ startEndTimePickerRefreshers.forEach(fn=>fn()); }
+
+/* ---- Seçili aralık saat seçicileri (vardiya slotlarına bağlı) ---- */
+const rangeTimePickerRefreshers=[];
+function setupRangeTimePicker(hiddenId){
+  const hidden=$(hiddenId);
+  const wrap=document.querySelector('.time-picker[data-target="'+hiddenId+'"]');
+  if(!hidden||!wrap) return;
+  const hSel=wrap.querySelector('.time-h'), mSel=wrap.querySelector('.time-m');
+  if(!hSel||!mSel) return;
+
+  function shiftHours(){
+    if(!slots.length) return Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+    const seen=new Set(), order=[];
+    slots.forEach(s=>{const h=s.label.slice(0,2); if(!seen.has(h)){seen.add(h);order.push(h);}});
+    return order;
+  }
+  function minutesForHour(h){
+    if(!slots.length) return ['00','15','30','45'];
+    const mins=slots.filter(s=>s.label.slice(0,2)===h).map(s=>s.label.slice(3));
+    return mins.length?mins:['00','15','30','45'];
+  }
+  function populateHours(){
+    const cur=hSel.value;
+    const hrs=shiftHours();
+    hSel.innerHTML='';
+    hrs.forEach(h=>{
+      const opt=document.createElement('option');
+      opt.value=h; opt.textContent=h; hSel.appendChild(opt);
+    });
+    hSel.value=hrs.includes(cur)?cur:hrs[0];
+  }
+  function populateMinutes(){
+    const cur=mSel.value;
+    const mins=minutesForHour(hSel.value);
+    mSel.innerHTML='';
+    mins.forEach(m=>{
+      const opt=document.createElement('option');
+      opt.value=m; opt.textContent=m; mSel.appendChild(opt);
+    });
+    mSel.value=mins.includes(cur)?cur:mins[0];
+  }
+  function syncToHidden(){
+    hidden.value=hSel.value+':'+mSel.value;
+    hidden.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  function refresh(){
+    const parts=(hidden.value||'00:00').split(':');
+    populateHours();
+    if(parts[0] && [...hSel.options].some(o=>o.value===parts[0])) hSel.value=parts[0];
+    populateMinutes();
+    let mNum=Math.round(Number(parts[1]||0)/15)*15;
+    const mm=String(mNum).padStart(2,'0');
+    if([...mSel.options].some(o=>o.value===mm)) mSel.value=mm;
+    syncToHidden();
+  }
+  hSel.addEventListener('change',()=>{ populateMinutes(); syncToHidden(); });
+  mSel.addEventListener('change',syncToHidden);
+  refresh();
+  rangeTimePickerRefreshers.push(refresh);
+}
+['rangeStart','rangeEnd'].forEach(setupRangeTimePicker);
+function refreshRangeTimePickers(){ rangeTimePickerRefreshers.forEach(fn=>fn()); }
+function refreshAllTimePickers(){ refreshStartEndTimePickers(); refreshRangeTimePickers(); }
+
+/* ---- Standart / Gelişmiş mod ---- */
+const ADVANCED_MODE_KEY='vardiyaTakip_advancedMode';
+function setAdvancedMode(on){
+  document.body.classList.toggle('advanced-mode', on);
+  $('modeStandardBtn') && $('modeStandardBtn').classList.toggle('active', !on);
+  $('modeAdvancedBtn') && $('modeAdvancedBtn').classList.toggle('active', on);
+  try{ localStorage.setItem(ADVANCED_MODE_KEY, on?'1':'0'); }catch(e){}
+}
+$('modeStandardBtn') && $('modeStandardBtn').addEventListener('click',()=>{setAdvancedMode(false);if(slots.length)calculate();});
+$('modeAdvancedBtn') && $('modeAdvancedBtn').addEventListener('click',()=>{setAdvancedMode(true);if(slots.length)calculate();});
+(function initAdvancedMode(){
+  let on=false;
+  try{ on=localStorage.getItem(ADVANCED_MODE_KEY)==='1'; }catch(e){}
+  setAdvancedMode(on);
+})();
+
+function minutes(t){
+  const p=String(t||'0:0').split(':').map(Number);
+  return p[0]*60+p[1];
+}
+function timeText(m){
+  m=((m%1440)+1440)%1440;
+  return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+}
+
+function createSlots(){
+  let s=minutes($('start').value);
+  let e=minutes($('end').value);
+  if(e<=s)e+=1440;
+  slots=[];
+  for(let t=s;t<=e;t+=15){
+    if(slots.length>100)break;
+    slots.push({abs:t,label:timeText(t),day:t>=1440});
+  }
+  groups=[];
+  if(slots.length>1){
+    groups.push([0]);
+    for(let i=1;i<slots.length;i+=4){
+      const g=[];
+      for(let j=i;j<Math.min(i+4,slots.length);j++)g.push(j);
+      groups.push(g);
+    }
+  }else if(slots.length) groups=[[0]];
+}
+
+function cls(i){
+  let c='';
+  if(i>0 && (i===1 || (i-1)%4===0))c+=' groupStart';
+  if(i>=1 && i%4===0)c+=' groupEnd';
+  return c;
+}
+
+function build(){
+  createSlots();
+
+  let h='<table><thead><tr>';
+  h+='<th class="rowlabel">Satır / Saat</th>';
+  slots.forEach((s,i)=>{ h+='<th class="timehead'+cls(i)+'">'+s.label+'</th>'; });
+  h+='</tr></thead><tbody>';
+
+  const rows=[
+    [2,'New Charge/Hr','chargeHr',true],
+    [3,'Shipment So Far','shipment'],
+    [3.5,'Shipment So Far incl. Fracs','shipmentFracs',true],
+    [4,'15 Dakikalık Adet','made'],
+    [4.5,'15 Dakikalık Fracs','madeFracs',true],
+    [5,'Mola Durumu','break'],
+    [6,'15 Dakikalık Ortalama (Mola Durumuna Göre)','r6'],
+    [7,'Saatlik Ortalama (Mola Durumuna Göre)','r7'],
+    [10,'15 Dakikalık Ortalama (Hepsi Dahil)','r10'],
+    [11,'Saatlik Ortalama (Hepsi Dahil)','r11'],
+    [12,'Saatlik Toplam Yapılan','r12'],
+    [12.5,'Saatlik Toplam Yapılan Fracs','r12Fracs',true],
+    [13,'Saatlik Kapasite','capacity'],
+    [14,'15 Dakikalık Yapılması Gereken','r14'],
+    [17,'Performans (%)','performance'],
+    [15,'Saatlik Yapılması Gereken','r15'],
+    [16,'Saatlik Yapılması Gereken-Yapılan','r16']
+  ];
+
+  rows.forEach(row=>{
+    const [num,label,type,isAdvanced]=row;
+    h+='<tr class="table-row-'+type+(isAdvanced?' advanced-only':'')+'"><td class="rowlabel">'+label+'</td>';
+
+    if(['r6','r7','r8','r9','r10','r11','r12','r12Fracs','r15','r16','chargeHr'].includes(type)){
+      groups.forEach(g=>{
+        const i=g[0];
+        const isManual=type==='chargeHr';
+        const inner=isManual
+          ? '<input class="cellnum chargeHr" data-i="'+i+'" type="number" step="any">'
+          : '<span id="'+type+'_'+i+'"></span>';
+        const baseClass=isManual?'manual':'calc';
+        if(g.length===1){
+          h+='<td class="'+baseClass+cls(i)+'">'+inner+'</td>';
+        }else{
+          h+='<td class="'+baseClass+' groupStart groupEnd" colspan="'+g.length+'">'+inner+'</td>';
+        }
+      });
+    }else{
+      slots.forEach((s,i)=>{
+        let content='';
+        let cellClass=cls(i)+' ';
+        if(type==='shipment'){
+          content='<input class="cellnum shipment" data-i="'+i+'" type="number" min="0" step="1">';
+          cellClass+='manual';
+        }else if(type==='shipmentFracs'){
+          content='<input class="cellnum shipmentFracs" data-i="'+i+'" type="number" min="0" step="1">';
+          cellClass+='manual';
+        }else if(type==='break'){
+          content='<button type="button" class="break work" data-i="'+i+'" data-value="c">Çalışma</button>';
+          cellClass+='manual';
+        }else if(type==='capacity'){
+          content='<input class="cellnum capacity" data-i="'+i+'" type="number" min="0" step="1">';
+          cellClass+='manual';
+        }else if(type==='performance'){
+          content='<span id="performance_'+i+'">—</span>';
+          cellClass+='calc performance-cell';
+        }else{
+          content='<span id="'+type+'_'+i+'"></span>';
+          cellClass+='calc';
+        }
+        h+='<td class="'+cellClass+'">'+content+'</td>';
+      });
+    }
+    h+='</tr>';
+  });
+
+  h+='</tbody></table>';
+  $('sheet').innerHTML=h;
+
+  updatePromises();
+
+  document.querySelectorAll('.shipment,.capacity,.shipmentFracs').forEach(el=>{
+    el.addEventListener('input',debouncedCalculate);
+    el.addEventListener('change',function(){
+      if(el.classList.contains('shipment')||el.classList.contains('shipmentFracs')) interpolateShipment();
+      calculate();
+    });
+    el.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){
+        e.preventDefault();
+        if(el.classList.contains('shipment')||el.classList.contains('shipmentFracs')) interpolateShipment();
+        calculate();
+        el.blur();
+      }
+    });
+  });
+  document.querySelectorAll('.capacity').forEach(el=>{
+    el.addEventListener('change',function(){
+      const v=val(el.value);
+      if(v===0){
+        const i=el.dataset.i;
+        const breakBtn=document.querySelector('.break[data-i="'+i+'"]');
+        if(breakBtn && breakBtn.dataset.value!=='m'){
+          setBreakValue(breakBtn,'m');
+          calculate();
+          updateSideInfo();
+        }
+      }
+    });
+  });
+  document.querySelectorAll('.chargeHr').forEach(el=>{
+    el.addEventListener('input',debouncedCalculate);
+    el.addEventListener('change',function(){ calculate(); });
+    el.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); calculate(); el.blur(); }
+    });
+  });
+  document.querySelectorAll('.break').forEach(el=>{
+    el.addEventListener('click',function(){
+      setBreakValue(el, el.dataset.value==='m' ? 'c' : 'm');
+      calculate();
+      updateSideInfo();
+    });
+  });
+  calculate();
+}
+
+function updatePromises(){
+  const p1=Number($('promise1') && $('promise1').value||0);
+  const p2=Number($('promise2') && $('promise2').value||0);
+  const shipment=read('shipment');
+
+  const midnightIndex=slots.findIndex(s=>s && s.abs===1440);
+
+  let actual1=null, reached1=null;
+  let actual2=null, reached2=null;
+
+  if(midnightIndex>=0){
+    for(let i=0;i<=midnightIndex && i<shipment.length;i++){
+      const v=shipment[i];
+      if(v===null || !Number.isFinite(v)) continue;
+      actual1=v;
+      if(p1>0 && reached1===null && v>=p1) reached1=(slots[i]&&slots[i].label)||null;
+    }
+  }else{
+    for(let i=0;i<shipment.length;i++){
+      const v=shipment[i];
+      if(v===null || !Number.isFinite(v)) continue;
+      actual1=v;
+      if(p1>0 && reached1===null && v>=p1) reached1=(slots[i]&&slots[i].label)||null;
+    }
+  }
+
+  if(midnightIndex>=0){
+    let total2=0, has2=false;
+    for(let i=midnightIndex+1;i<shipment.length;i++){
+      const v=shipment[i];
+      if(v===null || !Number.isFinite(v)) continue;
+      let made15=null;
+      if(slots[i] && slots[i].label==='00:15' && slots[i].day){
+        made15=Math.max(0,v);
+      }else{
+        let j=i-1;
+        while(j>midnightIndex && (shipment[j]===null || !Number.isFinite(shipment[j]))) j--;
+        const prev=(j>midnightIndex && shipment[j]!==null && Number.isFinite(shipment[j])) ? shipment[j] : 0;
+        made15=Math.max(0,v-prev);
+      }
+      total2+=made15;
+      has2=true;
+      if(p2>0 && reached2===null && total2>=p2){ reached2=(slots[i]&&slots[i].label)||null; }
+    }
+    if(has2) actual2=total2;
+  }
+
+  const update=(cardId,statusId,actualId,diffId,pctId,target,actual,reached)=>{
+    const card=$(cardId), status=$(statusId), av=$(actualId), diff=$(diffId), pctEl=$(pctId);
+    if(!card||!status||!av||!diff)return;
+    av.textContent=actual===null?'—':fmt(actual);
+    card.classList.remove('done');
+    const pct=target>0 && actual!==null ? (actual/target)*100 : 0;
+    if(pctEl) pctEl.textContent='%'+fmt(pct);
+    if(!target){
+      status.textContent='HEDEF GİRİLMEDİ';
+      diff.textContent='Kalan: —';
+      return;
+    }
+    const complete=actual!==null && actual>=target;
+    card.classList.toggle('done',complete);
+    status.textContent=complete?'TAMAMLANDI':'DEVAM EDİYOR';
+    if(complete){
+      diff.textContent=reached ? ('Hedef: '+reached) : 'Hedef karşılandı';
+    }else{
+      diff.textContent='Kalan: '+fmt(Math.max(0,target-(actual==null?0:actual)));
+    }
+  };
+
+  update('promiseCard1','promiseStatus1','promiseActual1','promiseDiff1','promisePct1',p1,actual1,reached1);
+  update('promiseCard2','promiseStatus2','promiseActual2','promiseDiff2','promisePct2',p2,actual2,reached2);
+}
+
+function read(cls){ return [...document.querySelectorAll('.'+cls)].map(e=>val(e.value)); }
+function readChargeHrRaw(){ return [...document.querySelectorAll('.chargeHr')].map(e=>val(e.value)); }
+function readChargeHrPerSlot(){
+  const inputs=[...document.querySelectorAll('.chargeHr')];
+  const perSlot=Array(slots.length).fill(null);
+  groups.forEach((g,k)=>{
+    const raw=inputs[k]?val(inputs[k].value):null;
+    if(raw===null) return;
+    const per=raw/g.length;
+    g.forEach(idx=>{ perSlot[idx]=per; });
+  });
+  return perSlot;
+}
+function readBreak(){ return [...document.querySelectorAll('.break')].map(e=>(e.dataset.value||'c').toLowerCase()); }
+function setBreakValue(el,value){
+  value=(value==='m')?'m':'c';
+  el.dataset.value=value;
+  el.textContent=value==='m'?'Mola':'Çalışma';
+  el.classList.toggle('work',value==='c');
+  el.classList.toggle('rest',value==='m');
+}
+function put(type,i,v){ const e=$(type+'_'+i); if(e)e.textContent=fmt(v); }
+function updateBreakColors(){
+  document.querySelectorAll('.break').forEach(el=>{
+    el.classList.toggle('work',el.dataset.value==='c');
+    el.classList.toggle('rest',el.dataset.value==='m');
+  });
+}
+
+function interpolateNumericRow(className){
+  const inputs=[...document.querySelectorAll('.'+className)];
+  const vals=inputs.map(el=>String(el.value||'').trim()===''?null:Number(el.value));
+  for(let i=0;i<vals.length;i++){
+    if(vals[i]!==null) continue;
+    let left=i-1; while(left>=0 && vals[left]===null) left--;
+    let right=i+1; while(right<vals.length && vals[right]===null) right++;
+    if(left<0 || right>=vals.length) continue;
+    if(slots[left].day!==slots[right].day) continue;
+    const step=(vals[right]-vals[left])/(right-left);
+    for(let j=left+1;j<right;j++){
+      if(String(inputs[j].value||'').trim()===''){
+        const v=vals[left]+step*(j-left);
+        inputs[j].value=Number.isInteger(v)?String(v):String(Number(v.toFixed(2)));
+        vals[j]=v;
+      }
+    }
+  }
+}
+function interpolateShipment(){ interpolateNumericRow('shipment'); interpolateNumericRow('shipmentFracs'); }
+
+function timeToMinutes(t){ const p=String(t||'').split(':').map(Number); return (p[0]||0)*60+(p[1]||0); }
+
+function calcSelectedRange(){
+  const rs=$('rangeStart') && $('rangeStart').value;
+  const re=$('rangeEnd') && $('rangeEnd').value;
+  if(!rs || !re){
+    $('rangeMade').textContent='0'; $('rangeRequired').textContent='0';
+    if($('rangeWorkDuration')) $('rangeWorkDuration').textContent='—';
+    if($('rangeFracsTotal')) $('rangeFracsTotal').textContent='—';
+    return;
+  }
+  const shiftStart=minutes($('start').value);
+  const selectedStart=minutes(rs);
+  const selectedEnd=minutes(re);
+  let startOffset=(selectedStart-shiftStart+1440)%1440;
+  let endOffset=(selectedEnd-shiftStart+1440)%1440;
+  if(endOffset<=startOffset) endOffset+=1440;
+  const rangeStartAbs=shiftStart+startOffset;
+  const rangeEndAbs=shiftStart+endOffset;
+
+  let madeTotal=0, reqTotal=0, filledSlots=0, lastFilledLabel=null, molaSlots=0, fracsTotal=0, fracsAnyFilled=false;
+  const br=readBreak();
+
+  slots.forEach((slot,i)=>{
+    if(!slot) return;
+    if(slot.abs>=rangeStartAbs && slot.abs<=rangeEndAbs){
+      const madeEl=$('made_'+i), reqEl=$('r14_'+i), fracsEl=$('madeFracs_'+i);
+      const madeText=madeEl ? String(madeEl.textContent).trim() : '';
+      const made=madeText ? Number(madeText.replace(/\./g,'').replace(',','.')) : NaN;
+      const req=reqEl ? Number(String(reqEl.textContent).replace(/\./g,'').replace(',','.')) : NaN;
+      const fracsText=fracsEl ? String(fracsEl.textContent).trim() : '';
+      const fracsVal=fracsText ? Number(fracsText.replace(/\./g,'').replace(',','.')) : NaN;
+      if(Number.isFinite(made)) madeTotal+=made;
+      if(Number.isFinite(req)) reqTotal+=req;
+      if(Number.isFinite(fracsVal)){ fracsTotal+=fracsVal; fracsAnyFilled=true; }
+      if(Number.isFinite(made) && made>0 && br[i]!=='m') filledSlots++;
+      if(Number.isFinite(made)) lastFilledLabel=slot.label;
+      if(br[i]==='m') molaSlots++;
+    }
+  });
+
+  $('rangeMade').textContent=fmt(madeTotal);
+  $('rangeRequired').textContent=fmt(reqTotal);
+  if($('rangeFracsTotal')) $('rangeFracsTotal').textContent=fracsAnyFilled?fmt(fracsTotal):'—';
+  if($('rangeWorkDuration')){
+    const rangeDurationMin=rangeEndAbs-rangeStartAbs;
+    const workMin=Math.max(0,rangeDurationMin-molaSlots*15);
+    const whh=Math.floor(workMin/60), wmm=workMin%60;
+    $('rangeWorkDuration').textContent=whh+'s '+String(wmm).padStart(2,'0')+'dk';
+  }
+  updateRangeExtras(filledSlots, lastFilledLabel);
+}
+
+/* ---- CSV ---- */
+let csvData=null;
+function parseCSV(text){
+  const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(x=>x.trim()!=='');
+  if(!lines.length) return null;
+  const first=lines[0];
+  const counts={',':(first.match(/,/g)||[]).length,';':(first.match(/;/g)||[]).length,'\t':(first.match(/\t/g)||[]).length};
+  const delimiter=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0] || ',';
+  function lineParse(line){
+    const out=[]; let cur='', quoted=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){ if(quoted && line[i+1]==='"'){cur+='"';i++;} else quoted=!quoted; }
+      else if(c===delimiter && !quoted){out.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+  return lines.map(lineParse);
+}
+function csvHeaderInfo(v){
+  let s=String(v||'').replace(/^"|"$/g,'').trim();
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if(m) return {date:m[1]+'-'+m[2]+'-'+m[3],minutes:+m[4]*60 + +m[5],key:m[1]+'-'+m[2]+'-'+m[3]+' '+m[4]+':'+m[5]};
+  m=s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})[ T]+(\d{1,2}):(\d{2})/);
+  if(m){
+    const dd=String(m[1]).padStart(2,'0'), mo=String(m[2]).padStart(2,'0'), hh=String(m[4]).padStart(2,'0');
+    return {date:m[3]+'-'+mo+'-'+dd,minutes:+m[4]*60 + +m[5],key:m[3]+'-'+mo+'-'+dd+' '+hh+':'+m[5]};
+  }
+  return null;
+}
+function metricNameMatches(name){ return /\bshipments\s+so\s+far\b/i.test(name); }
+function loadCSVFile(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const rows=parseCSV(e.target.result);
+      if(!rows || rows.length<2) throw new Error('CSV boş veya okunamadı.');
+      const header=rows[0];
+      const metrics=[];
+      for(let r=1;r<rows.length;r++){
+        const name=String(rows[r][0]||'').replace(/\s+/g,' ').trim();
+        if(metricNameMatches(name)) metrics.push({row:r,name});
+      }
+      if(!metrics.length) throw new Error('"Shipments So Far" metriği bulunamadı.');
+      csvData={rows,header,metrics};
+      const sel=$('metricSelect');
+      sel.innerHTML='';
+      metrics.forEach(m=>{ const o=document.createElement('option'); o.value=m.row; o.textContent=m.name; sel.appendChild(o); });
+      sel.disabled=false;
+      $('importCsv').disabled=false;
+      if($('csvImportOptions')) $('csvImportOptions').hidden=false;
+      const timestampCount=header.slice(1).map(csvHeaderInfo).filter(Boolean).length;
+      const hasEod=rows.some((r,idx)=>idx>0&&/\byest\.?\s*eod\s+shipments\b/i.test(String(r[0]||''))&&!/incl\.?\s*fracs/i.test(String(r[0]||'')));
+      $('csvStatus').textContent='CSV hazır: '+(rows.length-1)+' satır • '+timestampCount+' zaman kolonu • '+metrics.length+' Shipment metriği'+(hasEod?' • Yest. EOD bulundu':'')+'. Aktarmak istediğin metriği seç.';
+    }catch(err){
+      csvData=null;
+      $('metricSelect').innerHTML='<option value="">CSV okunamadı</option>';
+      $('metricSelect').disabled=true;
+      $('importCsv').disabled=true;
+      if($('csvImportOptions')) $('csvImportOptions').hidden=false;
+      $('csvStatus').textContent='Hata: '+err.message;
+    }
+  };
+  reader.readAsText(file,'UTF-8');
+}
+function importCSVShipment(){
+  if(!csvData) return;
+  const row=csvData.rows[Number($('metricSelect').value)];
+  if(!row) return;
+  const header=csvData.header;
+  const normal={};
+  for(let c=1;c<header.length;c++){
+    const d=csvHeaderInfo(header[c]); if(!d) continue;
+    const raw=String(row[c]==null?'':row[c]).trim(); if(raw==='') continue;
+    const n=Number(raw.replace(/,/g,'')); if(Number.isFinite(n)) normal[d.key]=n;
+  }
+  let eodRow=null;
+  for(let r=1;r<csvData.rows.length;r++){
+    const name=String(csvData.rows[r][0]||'').replace(/\s+/g,' ').trim();
+    if(/\byest\.?\s*eod\s+shipments\b/i.test(name) && !/incl\.?\s*fracs/i.test(name)){ eodRow=csvData.rows[r]; break; }
+  }
+  const eod={};
+  if(eodRow){
+    for(let c=1;c<header.length;c++){
+      const d=csvHeaderInfo(header[c]); if(!d) continue;
+      const raw=String(eodRow[c]==null?'':eodRow[c]).trim();
+      const n=Number(raw.replace(/,/g,'')); if(Number.isFinite(n)) eod[d.key]=n;
+    }
+  }
+  let baseDate=null;
+  for(let c=1;c<header.length;c++){ const d=csvHeaderInfo(header[c]); if(d){baseDate=d.date;break;} }
+  let imported=0,eodImported=0,missing=0;
+  document.querySelectorAll('.shipment').forEach((input,i)=>{
+    const s=slots[i];
+    const parts=String(s.label).split(':').map(Number);
+    const hh=parts[0], mm=parts[1];
+    const dt=new Date(baseDate+'T00:00:00');
+    if(s.day===1) dt.setDate(dt.getDate()+1);
+    const yyyy=dt.getFullYear(), mo=String(dt.getMonth()+1).padStart(2,'0'), da=String(dt.getDate()).padStart(2,'0');
+    const key=yyyy+'-'+mo+'-'+da+' '+String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+    if(s.day===1 && hh===0 && mm===0 && Object.prototype.hasOwnProperty.call(eod,key)){ input.value=eod[key]; eodImported++; return; }
+    if(Object.prototype.hasOwnProperty.call(normal,key)){ input.value=normal[key]; imported++; }
+    else{ missing++; }
+  });
+  interpolateShipment();
+  calculate();
+  $('csvStatus').textContent=imported+' Shipment So Far aktarıldı'+(eodImported?(', '+eodImported+' adet 00:00 Yest. EOD aktarıldı'):'')+(missing?(', '+missing+' slotta CSV karşılığı bulunamadı.'):'.');
+}
+function clearCSV(){
+  csvData=null;
+  if($('unifiedFileInput')) $('unifiedFileInput').value='';
+  if($('metricSelect')){ $('metricSelect').innerHTML='<option value="">Önce CSV yükle</option>'; $('metricSelect').disabled=true; }
+  if($('importCsv')) $('importCsv').disabled=true;
+  if($('csvImportOptions')) $('csvImportOptions').hidden=true;
+  if($('selectedFileName')) $('selectedFileName').textContent='Henüz dosya seçilmedi.';
+  $('csvStatus').textContent='Dosya yüklenmedi.';
+}
+function handleUnifiedFile(file){
+  if(!file) return;
+  const name=String(file.name||'').toLowerCase();
+  if($('selectedFileName')) $('selectedFileName').textContent='Seçilen dosya: '+file.name;
+  if(name.endsWith('.csv')){ if($('csvImportOptions')) $('csvImportOptions').hidden=false; loadCSVFile(file); return; }
+  if(name.endsWith('.xls') || name.endsWith('.html') || name.endsWith('.htm')){ if($('csvImportOptions')) $('csvImportOptions').hidden=true; importExcelState(file); return; }
+  $('csvStatus').textContent='Desteklenmeyen dosya. CSV veya kaydedilmiş Excel (.xls/.html) seç.';
+}
+(function setupUnifiedFileDrop(){
+  const input=$('unifiedFileInput'), drop=$('unifiedFileDrop');
+  if(!input || !drop) return;
+  drop.addEventListener('click',()=>input.click());
+  drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}});
+  input.addEventListener('change',()=>{if(input.files&&input.files[0]) handleUnifiedFile(input.files[0]);});
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();drop.classList.add('dragover');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();drop.classList.remove('dragover');}));
+  drop.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f) handleUnifiedFile(f);});
+})();
+$('importCsv').addEventListener('click',importCSVShipment);
+$('clearCsv').addEventListener('click',clearCSV);
+
+document.addEventListener('DOMContentLoaded',function(){
+  const q1=$('quickTab1'), q2=$('quickTab2');
+  function setQuickView(day){
+    const first=day===1;
+    q1 && q1.classList.toggle('active',first); q2 && q2.classList.toggle('active',!first);
+    $('quickView1') && $('quickView1').classList.toggle('active',first);
+    $('quickView2') && $('quickView2').classList.toggle('active',!first);
+    requestAnimationFrame(redrawAllCharts);
+  }
+  q1 && q1.addEventListener('click',()=>setQuickView(1));
+  q2 && q2.addEventListener('click',()=>setQuickView(2));
+
+  const cr=$('calcRange');
+  if(cr) cr.addEventListener('click',calcSelectedRange);
+  document.querySelectorAll('.time-picker[data-target="rangeStart"] select,.time-picker[data-target="rangeEnd"] select').forEach(sel=>{
+    sel.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();calcSelectedRange();}});
+  });
+});
+
+function calculate(){
+  if(!slots.length)return;
+  updatePromises();
+
+  const shipment=read('shipment');
+  const shipmentFracs=read('shipmentFracs');
+  const capacity=read('capacity');
+  const br=readBreak();
+  updateBreakColors();
+  const n=slots.length;
+
+  const made=Array(n).fill(null);
+  for(let i=0;i<n;i++){
+    if(shipment[i]===null)continue;
+    if(i===0)continue;
+    if(slots[i].label==='00:15' && slots[i].day){ made[i]=Math.max(0,shipment[i]); }
+    else if(shipment[i-1]!==null){ made[i]=Math.max(0,shipment[i]-shipment[i-1]); }
+  }
+
+  const madeFracs=Array(n).fill(null);
+  for(let i=0;i<n;i++){
+    if(shipmentFracs[i]===null)continue;
+    if(i===0)continue;
+    if(made[i]===null)continue;
+    if(slots[i].label==='00:15' && slots[i].day){ madeFracs[i]=Math.max(0,shipmentFracs[i])-made[i]; }
+    else if(shipmentFracs[i-1]!==null){ madeFracs[i]=(shipmentFracs[i]-shipmentFracs[i-1])-made[i]; }
+  }
+
+  const r6=Array(n).fill(null),r7=Array(n).fill(null),r8=Array(n).fill(null),r9=Array(n).fill(null);
+  const r10=Array(n).fill(null),r11=Array(n).fill(null),r12=Array(n).fill(null),r12Fracs=Array(n).fill(null);
+  const r14=Array(n).fill(null),r15=Array(n).fill(null),r16=Array(n).fill(null),performance=Array(n).fill(null);
+
+  groups.forEach(g=>{
+    if(g.length===0 || (g.length===1 && g[0]===0))return;
+    const all=g.map(i=>made[i]).filter(v=>v!==null);
+    const allFracs=g.map(i=>madeFracs[i]).filter(v=>v!==null);
+    const work=g.filter(i=>br[i]==='c' && made[i]!==null).map(i=>made[i]);
+    const nonzero=all.filter(v=>v>0);
+    const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+    const A=avg(work), B=avg(nonzero), C=avg(all);
+    const total=all.reduce((x,y)=>x+y,0);
+    const req=g.map(i=>capacity[i]).filter(v=>v!==null).map(v=>v/4);
+    const required=req.reduce((x,y)=>x+y,0);
+    const first=g[0];
+    r6[first]=A; r7[first]=A*4; r8[first]=B; r9[first]=B*4; r10[first]=C; r11[first]=C*4;
+    r12[first]=total; r12Fracs[first]=allFracs.length?allFracs.reduce((x,y)=>x+y,0):null;
+    r15[first]=required; r16[first]=total-required;
+    g.forEach(i=>{ if(capacity[i]!==null)r14[i]=capacity[i]/4; });
+  });
+
+  for(let i=0;i<n;i++){
+    if(made[i]!==null && r14[i]!==null && r14[i]>0) performance[i]=(made[i]/r14[i])*100;
+    put('made',i,made[i]); put('madeFracs',i,madeFracs[i]);
+    const madeCell=$('made_'+i);
+    if(madeCell){
+      madeCell.parentElement.classList.remove('lowprod');
+      if(made[i]!==null && r14[i]!==null && made[i] < r14[i]) madeCell.parentElement.classList.add('lowprod');
+    }
+    put('r6',i,r6[i]);put('r7',i,r7[i]);put('r8',i,r8[i]);put('r9',i,r9[i]);
+    put('r10',i,r10[i]);put('r11',i,r11[i]);put('r12',i,r12[i]);put('r12Fracs',i,r12Fracs[i]);put('r14',i,r14[i]);
+    const pe=$('performance_'+i);
+    if(pe){
+      pe.textContent=performance[i]===null?'—':'%'+fmt(performance[i]);
+      pe.parentElement.classList.remove('perf-good','perf-mid','perf-low');
+      if(performance[i]!==null) pe.parentElement.classList.add(performance[i]>=100?'perf-good':(performance[i]>=80?'perf-mid':'perf-low'));
+    }
+    put('r15',i,r15[i]);put('r16',i,r16[i]);
+    const e=$('r16_'+i);
+    if(e){
+      e.parentElement.classList.remove('negative','positive');
+      if(r16[i]<0)e.parentElement.classList.add('negative');
+      if(r16[i]>0)e.parentElement.classList.add('positive');
+    }
+  }
+
+  const ay4=made.map((v,i)=>v!==null&&v>0&&br[i]!=='m'?v:null).filter(v=>v!==null);
+  const AY4=ay4.length?ay4.reduce((a,b)=>a+b,0)/ay4.length:0;
+  const AZ4=AY4*4;
+  const ay14=r14.filter(v=>v!==null&&v>0);
+  const AY14=ay14.length?ay14.reduce((a,b)=>a+b,0)/ay14.length:0;
+  const AZ14=AY14*4;
+  $('AY4_BOX').textContent=fmt(AY4);
+  $('AZ4_BOX').textContent=fmt(AZ4);
+  $('AY14_BOX').textContent=fmt(AY14);
+  $('AZ14_BOX').textContent=fmt(AZ14);
+
+  drawChart(made,r14,readChargeHrPerSlot());
+  updatePromises();
+  updateDashboardMetrics(made,r14,br);
+
+  /* Monkey-patch kaldırıldı: opsAnalyze doğrudan hesaplama akışının parçası. */
+  opsAnalyze();
+}
+
+function updatePromiseProgress(){
+  [['promise1','promiseActual1','promiseProgress1'],['promise2','promiseActual2','promiseProgress2']].forEach(arr=>{
+    const t=arr[0],a=arr[1],b=arr[2];
+    const target=Number($(t) && $(t).value||0), actualText=($(a) && $(a).textContent)||'';
+    const actual=Number(actualText.replace(/\./g,'').replace(',','.'));
+    const pct=target>0&&Number.isFinite(actual)?Math.min(100,(actual/target)*100):0;
+    if($(b))$(b).style.width=pct+'%';
+  });
+}
+function midnightIndexForMetrics(){
+  const idx=slots.findIndex(s=>s.day && s.label==='00:00');
+  return idx>=0 ? idx : slots.length;
+}
+
+function updateDashboardMetrics(made,r14,br){
+  const p1=Number($('promise1') && $('promise1').value||0), p2=Number($('promise2') && $('promise2').value||0);
+  const shipmentMetric=read('shipment');
+  const shipmentFracsMetric=read('shipmentFracs');
+  const actual1=Number(String(($('promiseActual1')&&$('promiseActual1').textContent)||'').replace(/\./g,'').replace(',','.'))||0;
+  const actual2=Number(String(($('promiseActual2')&&$('promiseActual2').textContent)||'').replace(/\./g,'').replace(',','.'))||0;
+  const set=(id,v)=>{if($(id))$(id).textContent=v};
+
+  const shiftStart=minutes($('start').value);
+  let shiftEnd=minutes($('end').value);
+  if(shiftEnd<=shiftStart) shiftEnd+=1440;
+  const overlap=(a,b,c,d)=>Math.max(0,Math.min(b,d)-Math.max(a,c));
+  const day1Minutes=overlap(shiftStart,shiftEnd,0,1440);
+  const day2Minutes=overlap(shiftStart,shiftEnd,1440,2880);
+  const proratedP1=p1*(day1Minutes/1440);
+  const proratedP2=p2*(day2Minutes/1440);
+  const totalPromise=proratedP1+proratedP2;
+
+  const totalMade=made.filter(v=>v!==null&&Number.isFinite(v)).reduce((a,b)=>a+b,0);
+  const totalRequired=r14.filter(v=>v!==null&&Number.isFinite(v)&&v>0).reduce((a,b)=>a+b,0);
+  const promiseRatio=totalPromise>0?(totalMade/totalPromise)*100:0;
+  const requiredRatio=totalRequired>0?(totalMade/totalRequired)*100:0;
+  const efficiency=requiredRatio;
+
+  set('efficiencyBox','%'+fmt(efficiency));
+  set('efficiencyBox2','%'+fmt(efficiency));
+  set('avg15Box',($('AY4_BOX')&&$('AY4_BOX').textContent)||'0');
+  set('avgHourBox',($('AZ4_BOX')&&$('AZ4_BOX').textContent)||'0');
+  set('avg15AllBox',($('AY4_BOX')&&$('AY4_BOX').textContent)||'0');
+  const capVals=read('capacity').filter(v=>v!==null&&v>0);
+  set('hourCapacityBox',capVals.length?fmt(capVals.reduce((a,b)=>a+b,0)/capVals.length):'0');
+
+  set('totalPromise',fmt(totalPromise));
+  set('totalPromiseBox',fmt(totalPromise));
+  set('totalMadeBox',fmt(totalMade));
+  set('totalRequiredBox',fmt(totalRequired));
+  set('totalPromiseRatioBox','%'+fmt(promiseRatio));
+  set('totalRequiredRatioBox','%'+fmt(requiredRatio));
+  set('totalRemainBox',fmt(Math.max(0,totalPromise-totalMade)));
+  set('completionPct','%'+fmt(promiseRatio));
+  if($('totalFracsBox')){
+    let fracsTotal=0, fracsAnyFilled=false;
+    for(let i=0;i<slots.length;i++){
+      const el=$('madeFracs_'+i);
+      const txt=el?String(el.textContent).trim():'';
+      const v=txt?Number(txt.replace(/\./g,'').replace(',','.')):NaN;
+      if(Number.isFinite(v)){ fracsTotal+=v; fracsAnyFilled=true; }
+    }
+    $('totalFracsBox').textContent=fracsAnyFilled?fmt(fracsTotal):'—';
+  }
+
+  const d1=actual1,d2=actual2;
+  set('day1Total',fmt(d1)); set('day2Total',fmt(d2));
+  set('day1Pct',p1?'%'+fmt(d1/p1*100):'%0');
+  set('day2Pct',p2?'%'+fmt(d2/p2*100):'%0');
+
+  const lastDay1Index=(()=>{ const mid=midnightIndexForMetrics(); for(let i=Math.min(mid,slots.length-1);i>=0;i--){ if(shipmentMetric[i]!==null) return i; } return -1; })();
+  const lastDay2Index=(()=>{ const mid=midnightIndexForMetrics(); for(let i=slots.length-1;i>mid;i--){ if(shipmentMetric[i]!==null) return i; } return -1; })();
+  const elapsed1=lastDay1Index>=0 ? Math.max(0,slots[lastDay1Index].abs/60) : 0;
+  const elapsed2=lastDay2Index>midnightIndexForMetrics() ? Math.max(0,(slots[lastDay2Index].abs-1440)/60) : 0;
+  set('day1Avg',fmt(elapsed1>0?d1/elapsed1:0));
+  set('day2Avg',fmt(elapsed2>0?d2/elapsed2:0));
+
+  const done=(p1>0&&d1>=p1?1:0)+(p2>0&&d2>=p2?1:0);
+  const ongoing=(p1>0&&d1<p1?1:0)+(p2>0&&d2<p2?1:0);
+  set('statusDone',done); set('statusOngoing',ongoing); set('statusMissed',0);
+  drawPerformanceChart(done,ongoing,0);
+
+  const day1Labels=[],day1Data=[],day1Fracs=[];
+  shipmentMetric.forEach((v,i)=>{
+    if(!slots[i] || slots[i].day || v===null) return;
+    day1Labels.push(slots[i].label); day1Data.push(v);
+    const fv=shipmentFracsMetric[i];
+    day1Fracs.push((fv!==null&&Number.isFinite(fv))?fv:null);
+  });
+  drawMiniChart('day1Chart',day1Labels,day1Data,p1,day1Fracs);
+
+  const mid=midnightIndexForMetrics();
+  const base=(mid<shipmentMetric.length&&shipmentMetric[mid]!==null)?shipmentMetric[mid]:null;
+  const baseFracs=(mid<shipmentFracsMetric.length&&shipmentFracsMetric[mid]!==null)?shipmentFracsMetric[mid]:null;
+  const day2Labels=[],day2Data=[],day2Fracs=[];
+  shipmentMetric.forEach((v,i)=>{
+    if(!slots[i] || !slots[i].day || v===null) return;
+    const delta = base!==null ? Math.max(0,v-base) : Math.max(0,v);
+    day2Labels.push(slots[i].label); day2Data.push(delta);
+    const fv=shipmentFracsMetric[i];
+    if(fv!==null && Number.isFinite(fv)){ day2Fracs.push(baseFracs!==null ? Math.max(0,fv-baseFracs) : Math.max(0,fv)); }
+    else{ day2Fracs.push(null); }
+  });
+  drawMiniChart('day2Chart',day2Labels,day2Data,p2,day2Fracs);
+  updatePromiseProgress();
+
+  const groupVals=groups.filter(g=>g.length && !(g.length===1&&g[0]===0)).slice(0,5).map(g=>{
+    const gm=g.map(i=>made[i]).filter(v=>v!==null).reduce((a,b)=>a+b,0);
+    const gr=g.map(i=>r14[i]).filter(v=>v!==null&&v>0).reduce((a,b)=>a+b,0);
+    return gr?gm/gr*100:0;
+  });
+  for(let i=1;i<=5;i++){
+    const card=$('gp'+i), vEl=$('gp'+i+'v');
+    if(!card||!vEl) continue;
+    const v=groupVals[i-1]==null?0:groupVals[i-1];
+    vEl.textContent='%'+fmt(v);
+    card.classList.remove('done','warn','miss');
+    card.classList.add(v>=100?'done':(v>=80?'warn':'miss'));
+  }
+}
+
+function drawPerformanceChart(done,ongoing,missed){
+  const c=$('performanceChart'); if(!c)return;
+  const w=c.clientWidth||300,h=150,dpr=devicePixelRatio||1;
+  c.width=w*dpr;c.height=h*dpr;
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
+  const vals=[done,ongoing,missed],sum=Math.max(1,vals.reduce((a,b)=>a+b,0));
+  let a=-Math.PI/2;const colors=['#15803d','#2563eb','#dc2626'];
+  vals.forEach((v,i)=>{const da=v/sum*Math.PI*2;x.beginPath();x.moveTo(w/2,h/2);x.arc(w/2,h/2,55,a,a+da);x.closePath();x.fillStyle=colors[i];x.fill();a+=da});
+  x.beginPath();x.arc(w/2,h/2,32,0,Math.PI*2);x.fillStyle=getComputedStyle(document.body).getPropertyValue('--panel');x.fill();
+}
+function drawMiniChart(id,labels,data,target,fracsData){
+  const c=$(id);if(!c)return;
+  const w=c.clientWidth||420,h=c.clientHeight||160,dpr=devicePixelRatio||1;
+  c.width=w*dpr;c.height=h*dpr;
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
+  const cs=getComputedStyle(document.body);
+  const p={l:40,r:10,t:12,b:26};
+  const numeric=data.filter(v=>Number.isFinite(v));
+  const fracsNumeric=(fracsData||[]).filter(v=>v!==null && Number.isFinite(v));
+  const max=Math.max(10,target||0,...numeric,...fracsNumeric)*1.15;
+  const W=w-p.l-p.r,H=h-p.t-p.b;
+  x.strokeStyle=cs.getPropertyValue('--border').trim()||'#dfe6ef';x.lineWidth=1;
+  x.font='9.5px Arial';x.textAlign='right';
+  x.fillStyle=cs.getPropertyValue('--muted').trim()||'#68758a';
+  for(let j=0;j<4;j++){ const y=p.t+H*j/3; x.beginPath();x.moveTo(p.l,y);x.lineTo(w-p.r,y);x.stroke(); x.fillText(fmt(max*(1-j/3)),p.l-6,y+3); }
+  const X=i=>p.l+(data.length<=1?0:W*i/(data.length-1));
+  const Y=v=>p.t+H*(1-v/max);
+  if(target){x.strokeStyle='#15803d';x.lineWidth=1.5;x.setLineDash([5,4]);x.beginPath();x.moveTo(p.l,Y(target));x.lineTo(w-p.r,Y(target));x.stroke();x.setLineDash([]);}
+  x.strokeStyle='#2563eb';x.lineWidth=2.5;x.beginPath();
+  data.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));x.stroke();
+  x.fillStyle='#2563eb';data.forEach((v,i)=>{x.beginPath();x.arc(X(i),Y(v),3,0,Math.PI*2);x.fill();});
+  if(document.body.classList.contains('advanced-mode') && fracsData && fracsNumeric.length){
+    x.strokeStyle='#7c3aed';x.lineWidth=2.5;x.beginPath();
+    let started=false;
+    fracsData.forEach((v,i)=>{ if(v===null || !Number.isFinite(v)) return; if(!started){ x.moveTo(X(i),Y(v)); started=true; } else x.lineTo(X(i),Y(v)); });
+    if(started) x.stroke();
+    x.fillStyle='#7c3aed';
+    fracsData.forEach((v,i)=>{ if(v===null || !Number.isFinite(v)) return; x.beginPath();x.arc(X(i),Y(v),3,0,Math.PI*2);x.fill(); });
+  }
+  x.fillStyle=cs.getPropertyValue('--text').trim()||'#333';x.font='9.5px Arial';x.textAlign='center';
+  const step=Math.max(1,Math.ceil(labels.length/6));
+  labels.forEach((lab,i)=>{if(i%step===0)x.fillText(lab,X(i),h-9);});
+}
+
+function updateRangeExtras(filledSlots, lastFilledLabel){
+  const made=Number(String(($('rangeMade')&&$('rangeMade').textContent)||'0').replace(/\./g,'').replace(',','.'))||0;
+  const req=Number(String(($('rangeRequired')&&$('rangeRequired').textContent)||'0').replace(/\./g,'').replace(',','.'))||0;
+  const pct=req?made/req*100:0;
+  if($('rangePerf')) $('rangePerf').textContent='%'+fmt(pct);
+  if($('rangeRemain')) $('rangeRemain').textContent=fmt(Math.max(0,req-made));
+  const rs=$('rangeStart') && $('rangeStart').value, re=$('rangeEnd') && $('rangeEnd').value;
+  if(!rs||!re){ if($('rangeEta'))$('rangeEta').textContent='—'; return; }
+  const sm=timeToMinutes(rs), em=timeToMinutes(re);
+  let nominalMins=em-sm; if(nominalMins<=0) nominalMins+=1440;
+  const elapsedMins=(filledSlots && filledSlots>0) ? filledSlots*15 : nominalMins;
+  const perHour=elapsedMins>0 ? made/(elapsedMins/60) : 0;
+  const anchorMin=lastFilledLabel!==null && lastFilledLabel!==undefined ? timeToMinutes(lastFilledLabel) : em;
+  if(pct>=100){ if($('rangeEta')) $('rangeEta').textContent='Hedef karşılandı'; }
+  else if(perHour>0 && req>made){
+    const remainMin=(req-made)/perHour*60;
+    const totalAbsMin=Math.round(anchorMin+remainMin);
+    const daysAhead=Math.floor(totalAbsMin/1440);
+    const etaClock=(daysAhead>=1?'+'+daysAhead+'g ':'')+timeText(totalAbsMin);
+    const remainLabel=remainMin<60 ? Math.ceil(remainMin)+' dk' : Math.floor(remainMin/60)+'s '+Math.round(remainMin%60)+'dk';
+    if($('rangeEta')) $('rangeEta').textContent=etaClock+' (+'+remainLabel+')';
+  }else if($('rangeEta')) $('rangeEta').textContent='—';
+}
+
+let lastChartData={made:[],required:[],charge:[]};
+let lastChartLayout={left:0,W:0,n:0};
+function redrawAllCharts(){
+  if(lastChartData.made.length) drawChart(lastChartData.made,lastChartData.required,lastChartData.charge);
+  const shipment=read('shipment');
+  const shipmentFracs=read('shipmentFracs');
+  const p1=Number($('promise1') && $('promise1').value||0),p2=Number($('promise2') && $('promise2').value||0);
+  const d1Labels=[],d1Data=[],d1Fracs=[];
+  shipment.forEach((v,i)=>{if(slots[i]&&!slots[i].day&&v!==null){ d1Labels.push(slots[i].label);d1Data.push(v); const fv=shipmentFracs[i]; d1Fracs.push((fv!==null&&Number.isFinite(fv))?fv:null); }});
+  drawMiniChart('day1Chart',d1Labels,d1Data,p1,d1Fracs);
+  const mid=slots.findIndex(s=>s && s.abs===1440);
+  const d2Labels=[],d2Data=[],d2Fracs=[];
+  let cumulative2=0,cumulative2Fracs=0;
+  shipment.forEach((v,i)=>{
+    if(i<=mid || !slots[i] || !slots[i].day || v===null || !Number.isFinite(v)) return;
+    let made15=0;
+    if(slots[i].label==='00:15'){ made15=Math.max(0,v); }
+    else{ let j=i-1; while(j>mid && (shipment[j]===null || !Number.isFinite(shipment[j]))) j--; const prev=(j>mid && shipment[j]!==null && Number.isFinite(shipment[j]))?shipment[j]:0; made15=Math.max(0,v-prev); }
+    cumulative2+=made15; d2Labels.push(slots[i].label); d2Data.push(cumulative2);
+    const fv=shipmentFracs[i];
+    if(fv!==null && Number.isFinite(fv)){
+      let made15f=0;
+      if(slots[i].label==='00:15'){ made15f=Math.max(0,fv); }
+      else{ let jf=i-1; while(jf>mid && (shipmentFracs[jf]===null || !Number.isFinite(shipmentFracs[jf]))) jf--; const prevf=(jf>mid && shipmentFracs[jf]!==null && Number.isFinite(shipmentFracs[jf]))?shipmentFracs[jf]:0; made15f=Math.max(0,fv-prevf); }
+      cumulative2Fracs+=made15f; d2Fracs.push(cumulative2Fracs);
+    }else{ d2Fracs.push(null); }
+  });
+  drawMiniChart('day2Chart',d2Labels,d2Data,p2,d2Fracs);
+}
+function drawChart(made,required,charge){
+  charge=charge||lastChartData.charge||[];
+  lastChartData={made:[...made],required:[...required],charge:[...charge]};
+  const canvas=$('chart'); if(!canvas)return;
+  const width=canvas.clientWidth||1200;
+  const height=canvas.clientHeight||360;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=width*dpr; canvas.height=height*dpr;
+  const ctx=canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,width,height);
+  const p={left:55,right:20,top:20,bottom:45};
+  const W=width-p.left-p.right, H=height-p.top-p.bottom;
+  lastChartLayout={left:p.left,W:W,n:slots.length};
+  const tip=$('chartTooltip'); if(tip) tip.classList.remove('visible');
+  const numeric=made.filter(v=>v!==null);
+  const reqNumeric=required.filter(v=>v!==null);
+  const chargeNumeric=charge.filter(v=>v!==null && Number.isFinite(v));
+  const max=Math.max(10,...numeric,...reqNumeric,...chargeNumeric)*1.15;
+  const cs=getComputedStyle(document.body);
+  ctx.strokeStyle=cs.getPropertyValue('--border').trim()||'#d9d9d9';
+  ctx.lineWidth=1; ctx.font='11px Arial'; ctx.fillStyle=cs.getPropertyValue('--muted').trim()||'#666'; ctx.textAlign='right';
+  for(let j=0;j<=5;j++){ const y=p.top+H*j/5; ctx.beginPath();ctx.moveTo(p.left,y);ctx.lineTo(width-p.right,y);ctx.stroke(); ctx.fillText(fmt(max*(1-j/5)),p.left-8,y+4); }
+  const X=i=>p.left+(slots.length<=1?0:W*i/(slots.length-1));
+  const Y=v=>p.top+H*(1-v/max);
+  ctx.strokeStyle='#dc2626';ctx.lineWidth=2.5;ctx.setLineDash([7,5]);
+  let reqStarted=false;
+  required.forEach((v,i)=>{ if(v===null || !Number.isFinite(v)) return; if(!reqStarted){ ctx.beginPath();ctx.moveTo(X(i),Y(v));reqStarted=true; } else { ctx.lineTo(X(i),Y(v)); } });
+  if(reqStarted) ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle='#2563eb';ctx.lineWidth=2.5;ctx.beginPath();
+  let started=false;
+  made.forEach((v,i)=>{ if(v===null)return; if(!started){ ctx.moveTo(X(i),Y(v)); started=true; } else { ctx.lineTo(X(i),Y(v)); } });
+  ctx.stroke();
+  ctx.fillStyle='#2563eb';
+  made.forEach((v,i)=>{ if(v===null)return; ctx.beginPath();ctx.arc(X(i),Y(v),3.5,0,Math.PI*2);ctx.fill(); });
+  if(document.body.classList.contains('advanced-mode') && charge.some(v=>v!==null && Number.isFinite(v))){
+    ctx.strokeStyle='#ea580c';ctx.lineWidth=2.5;ctx.beginPath();
+    let chargeStarted=false;
+    charge.forEach((v,i)=>{ if(v===null || !Number.isFinite(v)) return; if(!chargeStarted){ ctx.moveTo(X(i),Y(v)); chargeStarted=true; } else ctx.lineTo(X(i),Y(v)); });
+    if(chargeStarted) ctx.stroke();
+    ctx.fillStyle='#ea580c';
+    charge.forEach((v,i)=>{ if(v===null || !Number.isFinite(v)) return; ctx.beginPath();ctx.arc(X(i),Y(v),3.5,0,Math.PI*2);ctx.fill(); });
+  }
+  ctx.fillStyle=cs.getPropertyValue('--text').trim()||'#444'; ctx.font='11px Arial'; ctx.textAlign='center';
+  const isExpanded=canvas.closest('.chart-panel') && canvas.closest('.chart-panel').classList.contains('expanded');
+  const labelStepMin=isExpanded?30:60;
+  slots.forEach((s,i)=>{ const mm=Number(s.label.slice(3)); if(mm%labelStepMin===0) ctx.fillText(s.label,X(i),height-22); });
+}
+
+function showChartTooltip(evt){
+  const canvas=$('chart'), tip=$('chartTooltip'), wrap=canvas&&canvas.parentElement;
+  if(!canvas||!tip||!wrap) return;
+  const n=lastChartLayout.n;
+  if(!n || n<=1) return;
+  const rect=canvas.getBoundingClientRect();
+  const clickX=(evt.clientX!==undefined?evt.clientX:(evt.touches&&evt.touches[0]?evt.touches[0].clientX:0))-rect.left;
+  const step=lastChartLayout.W/(n-1);
+  let idx=Math.round((clickX-lastChartLayout.left)/step);
+  idx=Math.max(0,Math.min(n-1,idx));
+  const made=lastChartData.made[idx];
+  const req=lastChartData.required[idx];
+  if((made===null||made===undefined) && (req===null||req===undefined)){ tip.classList.remove('visible'); return; }
+  const label=slots[idx]?slots[idx].label:'';
+  tip.innerHTML='<strong>'+escapeHtml(label)+'</strong><button type="button" aria-label="Kapat">&times;</button><br>Yapılan: '+(made===null||made===undefined?'—':fmt(made))+'<br>Gereken: '+(req===null||req===undefined?'—':fmt(req));
+  const closeBtn=tip.querySelector('button');
+  if(closeBtn) closeBtn.addEventListener('click',e=>{e.stopPropagation();tip.classList.remove('visible');});
+  tip.classList.add('visible');
+  const wrapWidth=wrap.getBoundingClientRect().width;
+  const tipWidth=tip.offsetWidth||160;
+  let left=clickX-tipWidth/2;
+  left=Math.max(4,Math.min(left,Math.max(4,wrapWidth-tipWidth-4)));
+  tip.style.left=left+'px';
+}
+$('chart') && $('chart').addEventListener('click',showChartTooltip);
+
+$('chartExpandBtn') && $('chartExpandBtn').addEventListener('click',function(){
+  const panel=$('chart') && $('chart').closest('.chart-panel');
+  if(!panel) return;
+  const expanded=panel.classList.toggle('expanded');
+  this.textContent=expanded?'Küçült':'Genişlet';
+  const tip=$('chartTooltip'); if(tip) tip.classList.remove('visible');
+  requestAnimationFrame(()=>{ if(lastChartData.made.length) drawChart(lastChartData.made,lastChartData.required,lastChartData.charge); });
+});
+$('quickviewExpandBtn') && $('quickviewExpandBtn').addEventListener('click',function(){
+  const panel=this.closest('.quickview-panel');
+  if(!panel) return;
+  const expanded=panel.classList.toggle('expanded');
+  this.textContent=expanded?'Küçült':'Genişlet';
+  requestAnimationFrame(redrawAllCharts);
+});
+
+/* ---- Panel sırası ve görünürlüğü ---- */
+const PANEL_META={ chart:'15 Dakikalık Grafik', performance:'Performans Durumu', averages:'Ortalamalar', quickview:'Hızlı Bakış', summary:'Günlük Özet', notes:'Notlar' };
+const PANEL_PREFS_KEY='vardiyaTakip_panelPrefs_v1';
+function savePanelPrefs(){
+  const grid=$('panelGrid'); if(!grid) return;
+  const order=[...grid.children].map(el=>el.dataset.panelId).filter(Boolean);
+  const hidden=[...grid.children].filter(el=>el.classList.contains('panel-hidden')).map(el=>el.dataset.panelId);
+  try{ localStorage.setItem(PANEL_PREFS_KEY, JSON.stringify({order,hidden})); }catch(e){}
+}
+function loadPanelPrefs(){
+  const grid=$('panelGrid'); if(!grid) return;
+  let prefs=null;
+  try{ const raw=localStorage.getItem(PANEL_PREFS_KEY); if(raw) prefs=JSON.parse(raw); }catch(e){}
+  if(!prefs) return;
+  if(Array.isArray(prefs.order)){ prefs.order.forEach(id=>{ const el=grid.querySelector('[data-panel-id="'+id+'"]'); if(el) grid.appendChild(el); }); }
+  if(Array.isArray(prefs.hidden)){ prefs.hidden.forEach(id=>{ const el=grid.querySelector('[data-panel-id="'+id+'"]'); if(el) el.classList.add('panel-hidden'); }); }
+}
+function movePanel(id,dir){
+  const grid=$('panelGrid'); if(!grid) return;
+  const el=grid.querySelector('[data-panel-id="'+id+'"]'); if(!el) return;
+  if(dir<0 && el.previousElementSibling) grid.insertBefore(el, el.previousElementSibling);
+  else if(dir>0 && el.nextElementSibling) grid.insertBefore(el.nextElementSibling, el);
+  savePanelPrefs(); renderPanelSettings();
+}
+function togglePanelVisibility(id){
+  const grid=$('panelGrid'); if(!grid) return;
+  const el=grid.querySelector('[data-panel-id="'+id+'"]'); if(!el) return;
+  const nowHidden=el.classList.toggle('panel-hidden');
+  if(id==='chart' && !nowHidden && lastChartData.made.length){ requestAnimationFrame(()=>drawChart(lastChartData.made,lastChartData.required,lastChartData.charge)); }
+  savePanelPrefs(); renderPanelSettings();
+}
+function renderPanelSettings(){
+  const grid=$('panelGrid'), list=$('panelSettingsList');
+  if(!grid || !list) return;
+  const items=[...grid.children].filter(el=>el.dataset.panelId);
+  list.innerHTML=items.map((el,idx)=>{
+    const id=el.dataset.panelId;
+    const label=PANEL_META[id]||id;
+    const isHidden=el.classList.contains('panel-hidden');
+    return '<div class="panel-settings-row">'
+      +'<button type="button" class="psr-up" data-id="'+id+'" '+(idx===0?'disabled':'')+' aria-label="Yukarı taşı">&uarr;</button>'
+      +'<button type="button" class="psr-down" data-id="'+id+'" '+(idx===items.length-1?'disabled':'')+' aria-label="Aşağı taşı">&darr;</button>'
+      +'<span class="psr-name">'+escapeHtml(label)+'</span>'
+      +'<button type="button" class="psr-toggle'+(isHidden?' is-hidden':'')+'" data-id="'+id+'" aria-label="Göster/Gizle">'+(isHidden?'Gizli':'Açık')+'</button>'
+      +'</div>';
+  }).join('');
+  list.querySelectorAll('.psr-up').forEach(b=>b.addEventListener('click',()=>movePanel(b.dataset.id,-1)));
+  list.querySelectorAll('.psr-down').forEach(b=>b.addEventListener('click',()=>movePanel(b.dataset.id,1)));
+  list.querySelectorAll('.psr-toggle').forEach(b=>b.addEventListener('click',()=>togglePanelVisibility(b.dataset.id)));
+}
+loadPanelPrefs();
+renderPanelSettings();
+
+/* ---- Settings drawer ---- */
+function openSettingsDrawer(){ $('settingsDrawer') && $('settingsDrawer').classList.add('open'); $('settingsBackdrop') && $('settingsBackdrop').classList.add('open'); }
+function closeSettingsDrawer(){ $('settingsDrawer') && $('settingsDrawer').classList.remove('open'); $('settingsBackdrop') && $('settingsBackdrop').classList.remove('open'); }
+$('settingsCloseBtn') && $('settingsCloseBtn').addEventListener('click',closeSettingsDrawer);
+$('settingsBackdrop') && $('settingsBackdrop').addEventListener('click',closeSettingsDrawer);
+
+/* ---- Özel modal (alert / confirm / prompt) ---- */
+function showAppModal(message,buttons,opts){
+  opts=opts||{};
+  return new Promise(resolve=>{
+    const backdrop=$('appModalBackdrop'), modal=$('appModal'), msgEl=$('appModalMessage'), btnWrap=$('appModalButtons'), inp=$('appModalInput');
+    if(!backdrop||!modal||!msgEl||!btnWrap){ resolve(true); return; }
+    msgEl.textContent=message;
+    if(inp){
+      if(opts.input){ inp.hidden=false; inp.value=opts.default||''; setTimeout(()=>inp.focus(),50); }
+      else { inp.hidden=true; inp.value=''; }
+    }
+    btnWrap.innerHTML='';
+    buttons.forEach(b=>{
+      const btn=document.createElement('button');
+      btn.type='button'; btn.textContent=b.label;
+      if(b.cls) btn.className=b.cls;
+      btn.addEventListener('click',()=>{ const v=(opts.input && b.value===true)?(inp?inp.value.trim():''):b.value; closeAppModal(); resolve(v); });
+      btnWrap.appendChild(btn);
+    });
+    backdrop.classList.add('open'); modal.classList.add('open');
+  });
+}
+function closeAppModal(){ $('appModalBackdrop') && $('appModalBackdrop').classList.remove('open'); $('appModal') && $('appModal').classList.remove('open'); }
+function appAlert(message){ return showAppModal(message,[{label:'Tamam',value:true,cls:'primary'}]); }
+function appConfirm(message){ return showAppModal(message,[{label:'Vazgeç',value:false,cls:''},{label:'Evet',value:true,cls:'danger'}]); }
+function appPrompt(message,def){ return showAppModal(message,[{label:'Vazgeç',value:false,cls:''},{label:'Kaydet',value:true,cls:'primary'}],{input:true,default:def||''}); }
+$('appModalBackdrop') && $('appModalBackdrop').addEventListener('click',closeAppModal);
+
+/* ---- Durum (state) ---- */
+function getCurrentState(){
+  return {
+    version:16,
+    savedAt:new Date().toISOString(),
+    name:($('shiftName') && $('shiftName').value.trim())||'',
+    start:($('start') && $('start').value)||'',
+    end:($('end') && $('end').value)||'',
+    p1:($('promise1') && $('promise1').value)||'',
+    p2:($('promise2') && $('promise2').value)||'',
+    shipment:read('shipment'),
+    shipmentFracs:read('shipmentFracs'),
+    capacity:read('capacity'),
+    chargeHr:readChargeHrRaw(),
+    breaks:readBreak(),
+    notes:($('notes') && $('notes').value)||''
+  };
+}
+function populateState(s){
+  $('start').value=s.start||'19:00';
+  $('end').value=s.end||'07:00';
+  $('promise1').value=s.p1||'';
+  $('promise2').value=s.p2||'';
+  if($('shiftName')) $('shiftName').value=s.name||'';
+  build();
+  refreshAllTimePickers();
+  document.querySelectorAll('.shipment').forEach((el,i)=>{ el.value=(s.shipment&&s.shipment[i]!=null)?s.shipment[i]:''; });
+  document.querySelectorAll('.shipmentFracs').forEach((el,i)=>{ el.value=(s.shipmentFracs&&s.shipmentFracs[i]!=null)?s.shipmentFracs[i]:''; });
+  document.querySelectorAll('.capacity').forEach((el,i)=>{ el.value=(s.capacity&&s.capacity[i]!=null)?s.capacity[i]:''; });
+  document.querySelectorAll('.chargeHr').forEach((el,i)=>{ el.value=(s.chargeHr&&s.chargeHr[i]!=null)?s.chargeHr[i]:''; });
+  document.querySelectorAll('.break').forEach((el,i)=>{ if(s.breaks&&s.breaks[i]!==undefined) setBreakValue(el, s.breaks[i]); });
+  if($('notes')){ $('notes').value=s.notes||''; if($('notesCount')) $('notesCount').textContent=($('notes').value.length)+' / 500'; }
+  interpolateShipment();
+  calculate();
+  updatePromises();
+}
+
+function save(){
+  try{
+    calculate();
+    const state=getCurrentState();
+    localStorage.setItem('vardiyaTakip_lastState',JSON.stringify(state));
+    if(state.name) upsertHistory(state);
+    $('status').textContent='Kayıt başarıyla kaydedildi: '+new Date(state.savedAt).toLocaleString('tr-TR');
+    if($('sideCreated') && $('sideCreated').textContent==='—') $('sideCreated').textContent=new Date(state.savedAt).toLocaleString('tr-TR');
+    addRecentLog(state.name?('"'+state.name+'" kaydedildi.'):'Veriler kaydedildi.');
+    renderRecentLogs(); updateSideInfo();
+  }catch(e){ $('status').textContent='Kayıt hatası: '+e.message; }
+}
+function loadSaved(){
+  try{
+    const raw=localStorage.getItem('vardiyaTakip_lastState');
+    if(!raw){ $('status').textContent='Kaydedilmiş vardiya bulunamadı.'; return; }
+    const s=JSON.parse(raw);
+    populateState(s);
+    $('status').textContent='Kayıt geri getirildi'+(s.savedAt?(' ('+new Date(s.savedAt).toLocaleString('tr-TR')+')'):'')+'.';
+    addRecentLog('Kayıt geri getirildi.'); renderRecentLogs(); updateSideInfo();
+  }catch(e){ $('status').textContent='Kayıt geri getirilemedi: '+e.message; }
+}
+
+/* ---- İsimli vardiya geçmişi (yeni özellik) ---- */
+const HISTORY_KEY='vardiyaTakip_history_v1';
+function getHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]'); }catch(e){ return []; } }
+function setHistory(list){ try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0,50))); }catch(e){} }
+function upsertHistory(state){
+  const list=getHistory();
+  const key=state.name.toLowerCase();
+  const idx=list.findIndex(x=>String(x.name||'').toLowerCase()===key);
+  const entry={ id:(idx>=0?list[idx].id:('s'+Date.now()+Math.random().toString(36).slice(2,6))), name:state.name, savedAt:state.savedAt, state:state };
+  if(idx>=0) list.splice(idx,1);
+  list.unshift(entry);
+  setHistory(list);
+  renderHistory();
+}
+function renderHistory(){
+  const box=$('historyList'); if(!box) return;
+  const list=getHistory();
+  if(!list.length){ box.innerHTML='<div class="empty-log">Henüz kayıtlı vardiya yok.</div>'; return; }
+  box.innerHTML='';
+  list.forEach(item=>{
+    const row=document.createElement('div'); row.className='history-item';
+    const meta=item.savedAt?new Date(item.savedAt).toLocaleString('tr-TR'):'';
+    row.innerHTML='<button type="button" class="hi-main" data-id="'+item.id+'"><span class="hi-name">'+escapeHtml(item.name)+'</span><span class="hi-meta">'+escapeHtml(meta)+'</span></button>'
+      +'<button type="button" class="hi-del" data-id="'+item.id+'" aria-label="Sil" title="Sil">&times;</button>';
+    box.appendChild(row);
+  });
+  box.querySelectorAll('.hi-main').forEach(b=>b.addEventListener('click',()=>loadHistory(b.dataset.id)));
+  box.querySelectorAll('.hi-del').forEach(b=>b.addEventListener('click',async e=>{
+    e.stopPropagation();
+    const ok=await appConfirm('Bu kayıtlı vardiya silinsin mi?');
+    if(ok) deleteHistory(b.dataset.id);
+  }));
+}
+function loadHistory(id){
+  const item=getHistory().find(x=>x.id===id);
+  if(!item || !item.state){ $('status').textContent='Kayıt bulunamadı.'; return; }
+  populateState(item.state);
+  $('status').textContent='"'+item.name+'" yüklendi'+(item.savedAt?(' ('+new Date(item.savedAt).toLocaleString('tr-TR')+')'):'')+'.';
+  addRecentLog('"'+item.name+'" geçmişten yüklendi.'); renderRecentLogs(); updateSideInfo();
+}
+function deleteHistory(id){
+  setHistory(getHistory().filter(x=>x.id!==id));
+  renderHistory();
+  $('status').textContent='Kayıtlı vardiya silindi.';
+}
+
+function exportExcel(){
+  calculate();
+  const table=document.querySelector('#sheet table');
+  if(!table){appAlert('Önce tabloyu oluşturmalısın.');return;}
+  const clone=table.cloneNode(true);
+  clone.querySelectorAll('input').forEach(input=>{ input.parentElement.textContent=input.value||''; });
+  clone.querySelectorAll('button.break').forEach(btn=>{ btn.parentElement.textContent=btn.textContent||''; });
+  const state=getCurrentState();
+  const stateJson=JSON.stringify(state);
+  const stateB64=btoa(unescape(encodeURIComponent(stateJson)));
+  const style='<style>table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif}th,td{border:1px solid #bfbfbf;padding:4px;text-align:center;white-space:nowrap}th{font-weight:bold;background:#d9e1f2}.rowlabel{text-align:left;font-weight:bold}.manual{background:#fff2cc}.negative{background:#f4cccc;color:#9c0006;font-weight:bold}.positive{background:#d9ead3;color:#274e13;font-weight:bold}#VardiyaTakipState{display:none}</style>';
+  const stateTable='<table id="VardiyaTakipState" style="display:none"><tr><th>VARDIYA_TAKIP_STATE</th><td>'+stateB64+'</td></tr></table>';
+  const doc='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">'+style+'<meta name="vardiya-takip-state" content="'+stateB64+'"></head><body>'
+    +'<h3>Vardiya / Shipment Takip</h3>'
+    +'<p>Vardiya: '+state.start+' - '+state.end+'</p>'
+    +'<p>1. Gün Promise: '+state.p1+' | 2. Gün Promise: '+state.p2+'</p>'
+    +'<!-- VARDIYA_TAKIP_STATE_START '+stateJson+' VARDIYA_TAKIP_STATE_END -->'
+    +stateTable+clone.outerHTML+'</body></html>';
+  const blob=new Blob(['\ufeff',doc],{type:'application/vnd.ms-excel'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  const d=new Date();
+  const stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'_'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
+  link.href=url; link.download='vardiya_takip_'+stamp+'.xls';
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  $('status').textContent='Excel dosyası hazırlandı. Bu dosya daha sonra tekrar yüklenebilir.';
+}
+function decodeVardiyaState(text){
+  let m=text.match(/VARDIYA_TAKIP_STATE_START\s*([\s\S]*?)\s*VARDIYA_TAKIP_STATE_END/);
+  if(m){ try{return JSON.parse(m[1].trim());}catch(e){} }
+  m=text.match(/id=["']VardiyaTakipState["'][^>]*>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>/i);
+  if(m){ try{ const b64=m[1].replace(/<[^>]+>/g,'').trim(); return JSON.parse(decodeURIComponent(escape(atob(b64)))); }catch(e){} }
+  m=text.match(/name=["']vardiya-takip-state["'][^>]*content=["']([^"']+)["']/i);
+  if(m){ try{return JSON.parse(decodeURIComponent(escape(atob(m[1]))));}catch(e){} }
+  return null;
+}
+function importExcelState(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const d=decodeVardiyaState(e.target.result);
+      if(!d || !Array.isArray(d.shipment)) throw new Error('Dosyada geri yüklenebilir vardiya kaydı bulunamadı.');
+      populateState(d);
+      $('status').textContent='Excel vardiya dosyası başarıyla geri yüklendi.';
+    }catch(err){
+      $('status').textContent='Excel geri yükleme hatası: '+err.message;
+      appAlert('Excel geri yüklenemedi. Bu dosyanın Vardiya Takip sayfasından indirilen .xls dosyası olduğundan emin ol.');
+    }
+  };
+  reader.onerror=function(){ $('status').textContent='Excel dosyası okunamadı.'; };
+  reader.readAsText(file,'UTF-8');
+}
+
+/* ---- Butonlar ---- */
+$('make').addEventListener('click',function(){build();updateSideInfo();addRecentLog('Tablo oluşturuldu.');refreshRangeTimePickers();});
+$('promise1').addEventListener('input',function(){updatePromises();debouncedCalculate();});
+$('promise2').addEventListener('input',function(){updatePromises();debouncedCalculate();});
+$('save').addEventListener('click',save);
+$('excel').addEventListener('click',exportExcel);
+$('load').addEventListener('click',loadSaved);
+$('clear').addEventListener('click',async function(){
+  const ok=await appConfirm('Manuel girişlerin tamamı silinsin mi?');
+  if(!ok)return;
+  localStorage.removeItem('vardiyaTakip_lastState');
+  $('promise1').value=''; $('promise2').value='';
+  build(); calculate();
+  $('status').textContent='Temizlendi.';
+  addRecentLog('Kayıtlı vardiya temizlendi.'); updateSideInfo();
+});
+
+/* ---- Son kayıtlar ---- */
+function getRecentLogs(){ try{return JSON.parse(localStorage.getItem('vardiyaTakip_recentLogs')||'[]');}catch(e){return [];} }
+function renderRecentLogs(){
+  const box=$('recentLogs'); if(!box)return;
+  const logs=getRecentLogs();
+  box.innerHTML='';
+  if(!logs.length){box.innerHTML='<div class="empty-log">Henüz kayıt yok.</div>';return;}
+  logs.slice(0,5).forEach(log=>{
+    const row=document.createElement('div');row.className='recent-log';
+    row.innerHTML='<strong>'+new Date(log.time).toLocaleString('tr-TR')+'</strong><span>'+escapeHtml(String(log.message||''))+'</span>';
+    box.appendChild(row);
+  });
+}
+function addRecentLog(message){
+  const logs=getRecentLogs();
+  logs.unshift({time:new Date().toISOString(),message});
+  localStorage.setItem('vardiyaTakip_recentLogs',JSON.stringify(logs.slice(0,5)));
+  renderRecentLogs();
+  if($('sideUpdated'))$('sideUpdated').textContent=new Date().toLocaleString('tr-TR');
+}
+function updateSideInfo(){
+  const s=minutes($('start').value),e=minutes($('end').value);let d=e-s;if(d<=0)d+=1440;
+  const hh=Math.floor(d/60),mm=d%60;
+  if($('sideDuration'))$('sideDuration').textContent=hh+'s '+String(mm).padStart(2,'0')+'dk';
+  if($('sideWorkDuration')){
+    const molaCount=readBreak().filter(v=>v==='m').length;
+    const workMin=Math.max(0,d-molaCount*15);
+    const whh=Math.floor(workMin/60), wmm=workMin%60;
+    $('sideWorkDuration').textContent=whh+'s '+String(wmm).padStart(2,'0')+'dk';
+  }
+  if($('sideCreated')&&$('sideCreated').textContent==='—')$('sideCreated').textContent=new Date().toLocaleString('tr-TR');
+}
+function printReport(){window.print();}
+$('printReport') && $('printReport').addEventListener('click',printReport);
+$('sidePrint') && $('sidePrint').addEventListener('click',printReport);
+$('sideExcel') && $('sideExcel').addEventListener('click',()=>$('excel') && $('excel').click());
+$('sideBackup') && $('sideBackup').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(getCurrentState(),null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vardiya_takip_yedek.json';a.click();URL.revokeObjectURL(a.href);
+});
+$('settingsBtn') && $('settingsBtn').addEventListener('click',openSettingsDrawer);
+$('notes') && $('notes').addEventListener('input',e=>{ if($('notesCount'))$('notesCount').textContent=e.target.value.length+' / 500'; localStorage.setItem('vardiyaTakip_notes',e.target.value); });
+const savedNotes=localStorage.getItem('vardiyaTakip_notes');
+if(savedNotes&&$('notes')){$('notes').value=savedNotes;$('notesCount').textContent=savedNotes.length+' / 500';}
+
+updateSideInfo();
+renderRecentLogs();
+renderHistory();
+
+/* ---- Tema ---- */
+function applyTheme(){
+  const dark=localStorage.getItem('vardiyaTheme')==='dark';
+  document.body.classList.toggle('dark',dark);
+  $('theme').textContent=dark?'Açık Mod':'Koyu Mod';
+  if(slots.length) setTimeout(()=>calculate(),20);
+}
+document.addEventListener('DOMContentLoaded',function(){
+  const collapse=$('sidebarCollapse'), open=$('sidebarOpen');
+  const storedCollapse=localStorage.getItem('vardiya_sidebar_collapsed');
+  const savedCollapse=storedCollapse===null ? true : storedCollapse==='1';
+  if(savedCollapse) document.body.classList.add('sidebar-collapsed');
+  function toggleSidebar(collapsed){
+    document.body.classList.toggle('sidebar-collapsed',collapsed);
+    localStorage.setItem('vardiya_sidebar_collapsed',collapsed?'1':'0');
+  }
+  collapse && collapse.addEventListener('click',()=>toggleSidebar(true));
+  open && open.addEventListener('click',()=>toggleSidebar(false));
+});
+$('theme').addEventListener('click',function(){
+  const dark=!document.body.classList.contains('dark');
+  localStorage.setItem('vardiyaTheme',dark?'dark':'light');
+  applyTheme();
+});
+applyTheme();
+
+window.addEventListener('resize',function(){ if(slots.length)calculate(); });
+
+build();
+refreshRangeTimePickers();
+
+/* ---- Operasyonel kontrol merkezi ---- */
+function opsGetMade(){ return slots.map((s,i)=>{const e=$('made_'+i);if(!e)return null;const raw=String(e.textContent||'').trim();if(!raw||raw==='—')return null;const n=Number(raw.replace(/\./g,'').replace(',','.'));return Number.isFinite(n)?n:null;}); }
+function opsGetRequired(){ return slots.map((s,i)=>{const e=$('r14_'+i);if(!e)return null;const raw=String(e.textContent||'').trim();if(!raw||raw==='—')return null;const n=Number(raw.replace(/\./g,'').replace(',','.'));return Number.isFinite(n)?n:null;}); }
+function opsSetCard(id,kind){ const e=$(id);if(e)e.className='ops-card '+(kind||''); }
+function opsFmtPace(n){ return Number.isFinite(n)?fmt(Math.round(n))+' / saat':'—'; }
+function opsForecastText(pct,actual,target){ if(!target)return 'Hedef yok'; if(actual>=target)return 'Hedef tamamlandı'; if(!Number.isFinite(pct))return '—'; return '%'+fmt(pct); }
+function opsShiftPromiseTarget(){
+  const p1=Number($('promise1') && $('promise1').value||0), p2=Number($('promise2') && $('promise2').value||0);
+  let start=minutes($('start') && $('start').value||'00:00'), end=minutes($('end') && $('end').value||'00:00');
+  if(end<=start) end+=1440;
+  const day1Minutes=Math.max(0,Math.min(end,1440)-Math.max(start,0));
+  const day2Minutes=Math.max(0,Math.min(end,2880)-Math.max(start,1440));
+  return {target:p1*day1Minutes/1440 + p2*day2Minutes/1440};
+}
+function opsAnalyze(){
+  if(!slots.length)return;
+  const made=opsGetMade(), req=opsGetRequired(), br=readBreak();
+  const entered=read('shipment');
+  const target=opsShiftPromiseTarget().target;
+  let last=-1; for(let i=0;i<entered.length;i++) if(Number.isFinite(entered[i])) last=i;
+  const upto=last>=0?last:slots.length-1;
+  const validIdx=[]; for(let i=0;i<=upto;i++) if(Number.isFinite(made[i])) validIdx.push(i);
+  const workIdx=validIdx.filter(i=>br[i]!=='m');
+  const recent=workIdx.slice(-4);
+  const recentMade=recent.map(i=>made[i]).filter(Number.isFinite);
+  const current15=recentMade.length?recentMade.reduce((a,b)=>a+b,0)/recentMade.length:NaN;
+  const currentPace=current15*4;
+  let actual=0; for(let i=0;i<=upto;i++) if(Number.isFinite(made[i])) actual+=made[i];
+  const remain=Math.max(0,target-actual);
+  let elapsedEndAbs=last>=0?slots[last].abs:slots[0].abs;
+  const shiftEndAbs=(slots[slots.length-1]&&slots[slots.length-1].abs)||elapsedEndAbs;
+  const remainingMinutes=Math.max(0,shiftEndAbs-elapsedEndAbs);
+  const requiredPace=remainingMinutes>0?remain/(remainingMinutes/60):NaN;
+  const gap=currentPace-requiredPace;
+  const projected=remainingMinutes>0 && Number.isFinite(currentPace)?actual+currentPace*(remainingMinutes/60):actual;
+  const projectedPct=target>0?projected/target*100:NaN;
+  const forecastTime=target>0&&currentPace>0&&remain>0?remain/currentPace*60:0;
+  const lowLoss=validIdx.reduce((sum,i)=>{const r=req[i],m=made[i];return sum+(Number.isFinite(r)&&Number.isFinite(m)?Math.max(0,r-m):0);},0);
+  const workMade=validIdx.filter(i=>br[i]!=='m').map(i=>made[i]).filter(Number.isFinite);
+  const workAvg=workMade.length?workMade.reduce((a,b)=>a+b,0)/workMade.length:0;
+  const breakCount=validIdx.filter(i=>br[i]==='m').length;
+  const breakLoss=workAvg*breakCount;
+  const totalGap=Math.max(0,target-actual);
+  const trendVals=validIdx.slice(-4).map(i=>made[i]).filter(Number.isFinite);
+  let trend='—'; if(trendVals.length>=2){const dd=trendVals[trendVals.length-1]-trendVals[0];trend=dd>2?'İyileşiyor':dd<-2?'Kötüleşiyor':'Stabil';}
+  let streak=0; for(let j=validIdx.length-1;j>=0;j--){const i=validIdx[j]; if(Number.isFinite(req[i])&&req[i]>0&&made[i]<req[i])streak++; else break;}
+  const missing=Math.max(0,slots.length-(last+1));
+  const midnightIdx=slots.findIndex(s=>s.day && s.label==='00:00');
+  let decreases=0; for(let i=1;i<entered.length;i++){ if(!Number.isFinite(entered[i])||!Number.isFinite(entered[i-1])||entered[i]>=entered[i-1]) continue; if(midnightIdx>=0 && i===midnightIdx+1) continue; decreases++; }
+  const cap=read('capacity'); const capMissing=validIdx.filter(i=>!Number.isFinite(cap[i])).length;
+  const capPairs=validIdx.filter(i=>Number.isFinite(cap[i])&&Number.isFinite(made[i])&&cap[i]>0);
+  const capUtil=capPairs.length?capPairs.reduce((sum,i)=>sum+made[i],0)/capPairs.reduce((sum,i)=>sum+cap[i],0)*100:NaN;
+  const confidence=(decreases===0&&capMissing===0&&validIdx.length>0)?'Yüksek':(decreases<=1&&capMissing<=2?'Orta':'Düşük');
+  const pct=target>0?actual/target*100:NaN;
+
+  $('opsCurrentPace').textContent=opsFmtPace(currentPace); $('opsCurrentPaceSub').textContent=recent.length+' son 15 dk slotunun ortalaması';
+  $('opsRequiredPace').textContent=opsFmtPace(requiredPace);
+  $('opsRequiredPaceSub').textContent=fmt(remain)+' adet / '+fmt(remainingMinutes)+' dk • Vardiya Promise: '+fmt(target);
+  $('opsPaceGap').textContent=Number.isFinite(gap)?((gap>=0?'+':'')+fmt(Math.round(gap))+' / saat'):'—';
+  $('opsPaceGapSub').textContent=gap>=0?'Hedef temposunun üstünde':'Hedef temposunun altında';
+  $('opsForecast').textContent=opsForecastText(projectedPct,projected,target);
+  $('opsForecastSub').textContent=Number.isFinite(projectedPct)?('Tahmini gerçekleşme: %'+fmt(projectedPct)+(forecastTime>0?(' • hedefe ~'+fmt(forecastTime)+' dk'):'')):'Yeterli veri yok';
+  $('opsStatusText').textContent=target<=0?'HEDEF GİRİLMEDİ':(actual>=target?'HEDEF TAMAMLANDI':gap>=0?'YETİŞME İHTİMALİ VAR':'TEMPO YETERSİZ');
+  $('opsStatusSub').textContent=target>0?(fmt(actual)+' / '+fmt(target)+' adet (%'+fmt(pct)+')'):'Promise gir';
+  opsSetCard('opsPaceCard',currentPace>=requiredPace?'good':'info'); opsSetCard('opsNeedCard',currentPace>=requiredPace?'good':'warn'); opsSetCard('opsGapCard',gap>=0?'good':'bad'); opsSetCard('opsForecastCard',projected>=target&&target>0?'good':projected>=target*.95?'warn':'bad'); opsSetCard('opsAlertCard',gap>=0?'good':'bad');
+  $('opsLowLoss').textContent=fmt(Math.round(lowLoss))+' adet'; $('opsBreakLoss').textContent=fmt(Math.round(breakLoss))+' adet'; $('opsTotalGap').textContent=fmt(Math.round(totalGap))+' adet'; $('opsCapacityUtil').textContent=Number.isFinite(capUtil)?('%'+fmt(capUtil)):'—'; $('opsTrend').textContent=trend; $('opsStreak').textContent=streak+' slot';
+  $('opsDataCount').textContent=validIdx.length; $('opsMissingCount').textContent=missing; $('opsDecreaseCount').textContent=decreases; $('opsCapacityMissing').textContent=capMissing; $('opsDataConfidence').textContent=confidence;
+  const alerts=[];
+  if(!target) alerts.push('Promise değerlerini gir: canlı hedef/tempo analizi başlar.');
+  if(target>0&&gap<0) alerts.push('Tempo yetersiz: gerekli hızın '+fmt(Math.abs(Math.round(gap)))+' / saat altındasın.');
+  if(streak>=3) alerts.push('Son '+streak+' slot üst üste hedef altında.');
+  if(trend==='Kötüleşiyor') alerts.push('Son 4 slot trendi aşağı yönlü; müdahale gerekebilir.');
+  if(decreases>0) alerts.push('Shipment So Far içinde '+decreases+' azalma tespit edildi; veri kontrolü önerilir.');
+  if(capMissing>0) alerts.push(capMissing+' hesaplanmış slotta kapasite bilgisi eksik.');
+  if(target>0&&projected>=target) alerts.push('Mevcut tempo korunursa hedefe ulaşma tahmini olumlu.');
+  if(!alerts.length) alerts.push('Kritik alarm görünmüyor.');
+  $('opsAlerts').innerHTML=alerts.slice(0,5).map(a=>'<div class="ops-alert-item">'+escapeHtml(a)+'</div>').join('');
+  $('opsStatusText').title='Son hesaplama: '+new Date().toLocaleTimeString('tr-TR');
+}
+
+})();
+</script>
+</body>
+</html>
